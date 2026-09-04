@@ -112,7 +112,7 @@ function LiveOddsTicker() {
 function WhatsAppFAB() {
   return (
     <a
-      href="https://wa.me/1234567890?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
+      href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
       target="_blank"
       rel="noopener noreferrer"
       className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold px-5 py-3.5 rounded-full shadow-2xl animate-pulse-glow transition-all duration-300 hover:scale-105"
@@ -188,32 +188,60 @@ export default function App() {
     { name: 'Baseball', emoji: '⚾', winRate: '88%', events: '120+/week' },
   ];
 
+  // Plans from the official Arbalist Capital earnings table (1.3% daily)
   const plans = [
     {
-      name: 'Starter',
-      price: '$100',
-      period: 'min investment',
-      returns: '15-25%',
-      returnPeriod: 'monthly',
-      features: ['Daily betting tips', 'Sports: Football & Basketball', 'WhatsApp support', 'Weekly reports', 'Withdraw anytime'],
+      name: 'Bronze',
+      deposit: '$50,000',
+      dailyEarnings: '$650',
+      reward7d: '$4,550',
+      reward30d: '$19,500',
+      reward90d: '$58,500',
       popular: false,
     },
     {
-      name: 'Professional',
-      price: '$500',
-      period: 'min investment',
-      returns: '25-40%',
-      returnPeriod: 'monthly',
-      features: ['All Starter features', 'All sports coverage', 'Priority support 24/7', 'Daily P&L reports', 'Personal account manager', 'Early access to premium picks'],
+      name: 'Silver',
+      deposit: '$100,000',
+      dailyEarnings: '$1,300',
+      reward7d: '$9,100',
+      reward30d: '$39,000',
+      reward90d: '$117,000',
+      popular: false,
+    },
+    {
+      name: 'Gold',
+      deposit: '$200,000',
+      dailyEarnings: '$2,600',
+      reward7d: '$18,200',
+      reward30d: '$78,000',
+      reward90d: '$234,000',
+      popular: false,
+    },
+    {
+      name: 'Platinum',
+      deposit: '$300,000',
+      dailyEarnings: '$3,900',
+      reward7d: '$27,300',
+      reward30d: '$117,000',
+      reward90d: '$351,000',
       popular: true,
     },
     {
+      name: 'Diamond',
+      deposit: '$500,000',
+      dailyEarnings: '$6,500',
+      reward7d: '$45,500',
+      reward30d: '$195,000',
+      reward90d: '$585,000',
+      popular: false,
+    },
+    {
       name: 'Elite',
-      price: '$2,000',
-      period: 'min investment',
-      returns: '40-60%',
-      returnPeriod: 'monthly',
-      features: ['All Professional features', 'VIP arbitrage opportunities', 'Live in-play strategies', 'Direct analyst access', 'Custom risk profiles', 'Guaranteed capital protection'],
+      deposit: '$1,000,000',
+      dailyEarnings: '$13,000',
+      reward7d: '$91,000',
+      reward30d: '$390,000',
+      reward90d: '$1,170,000',
       popular: false,
     },
   ];
@@ -325,7 +353,7 @@ export default function App() {
               </a>
             ))}
             <a
-              href="https://wa.me/1234567890?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing."
+              href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing."
               target="_blank"
               rel="noopener noreferrer"
               className="ml-2 bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold text-sm px-6 py-2.5 rounded-lg hover:from-lime-300 hover:to-lime-400 transition-all shadow-lg shadow-lime-400/20 hover:shadow-lime-400/40"
@@ -355,7 +383,7 @@ export default function App() {
                 </a>
               ))}
               <a
-                href="https://wa.me/1234567890"
+                href="https://wa.me/2347087521891"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block mt-4 text-center bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold text-sm px-5 py-3 rounded-lg"
@@ -412,7 +440,7 @@ export default function App() {
 
               <div className="animate-fade-in-up delay-400 mt-10 flex flex-col sm:flex-row gap-4">
                 <a
-                  href="https://wa.me/1234567890?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
+                  href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold text-base px-8 py-4 rounded-xl hover:from-lime-300 hover:to-lime-400 transition-all shadow-xl shadow-lime-400/20 hover:shadow-lime-400/40 hover:-translate-y-0.5"
@@ -686,12 +714,12 @@ export default function App() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {plans.map((plan, i) => (
               <div
                 key={i}
                 onMouseEnter={() => setActivePlan(i)}
-                className={`relative bg-dark-600/40 border rounded-2xl p-8 transition-all duration-500 ${
+                className={`relative bg-dark-600/40 border rounded-2xl p-7 transition-all duration-500 ${
                   activePlan === i
                     ? 'border-lime-400/30 shadow-2xl shadow-lime-400/10 -translate-y-2 scale-[1.02]'
                     : 'border-lime-400/5 hover:border-lime-400/15'
@@ -703,29 +731,39 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="text-center mb-8">
+                <div className="text-center mb-6">
                   <h3 className="text-xl font-bold font-serif text-white">{plan.name}</h3>
-                  <div className="mt-4">
-                    <span className="text-4xl font-black text-white font-serif">{plan.price}</span>
-                    <span className="text-sm text-gray-400 ml-2">{plan.period}</span>
+                  <div className="mt-3">
+                    <span className="text-3xl font-black text-white font-serif">{plan.deposit}</span>
+                    <span className="text-xs text-gray-400 ml-2 block mt-1">deposit amount</span>
                   </div>
                   <div className="mt-3 inline-flex items-center gap-1 bg-lime-400/10 px-3 py-1.5 rounded-full">
                     <TrendingUp className="w-4 h-4 text-lime-400" />
-                    <span className="text-sm font-bold text-lime-400">{plan.returns} {plan.returnPeriod}</span>
+                    <span className="text-sm font-bold text-lime-400">1.3% Daily</span>
                   </div>
                 </div>
 
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f, j) => (
-                    <li key={j} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-lime-400 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-gray-300">{f}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-2.5 mb-6">
+                  <div className="flex items-center justify-between bg-dark-700/60 rounded-xl px-4 py-2.5">
+                    <span className="text-xs text-gray-400">Daily Earnings</span>
+                    <span className="text-sm font-bold text-lime-400">{plan.dailyEarnings}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-dark-700/60 rounded-xl px-4 py-2.5">
+                    <span className="text-xs text-gray-400">7-Day Reward</span>
+                    <span className="text-sm font-bold text-white">{plan.reward7d}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-dark-700/60 rounded-xl px-4 py-2.5">
+                    <span className="text-xs text-gray-400">30-Day Reward</span>
+                    <span className="text-sm font-bold text-white">{plan.reward30d}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-lime-400/5 border border-lime-400/10 rounded-xl px-4 py-2.5">
+                    <span className="text-xs text-gray-400">90-Day Reward</span>
+                    <span className="text-sm font-black text-lime-400">{plan.reward90d}</span>
+                  </div>
+                </div>
 
                 <a
-                  href={`https://wa.me/1234567890?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20invest%20in%20the%20${plan.name}%20Plan.`}
+                  href={`https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20invest%20in%20the%20${plan.name}%20Plan%20(${plan.deposit}).`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl transition-all ${
@@ -739,6 +777,18 @@ export default function App() {
                 </a>
               </div>
             ))}
+          </div>
+
+          {/* View All Plans Button */}
+          <div className="mt-12 text-center">
+            <a
+              href="/plans"
+              className="inline-flex items-center gap-3 border-2 border-lime-400/30 text-lime-400 font-bold text-base px-10 py-4 rounded-xl hover:bg-lime-400/10 hover:border-lime-400/60 transition-all duration-300"
+            >
+              View All Plans
+              <ArrowRight className="w-5 h-5" />
+            </a>
+            <p className="mt-3 text-sm text-gray-500">Plans from $50 to $5,000,000 available</p>
           </div>
         </div>
       </Section>
@@ -854,7 +904,7 @@ export default function App() {
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
                 <a
-                  href="https://wa.me/1234567890?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20earning%20from%20sports%20betting%20investment."
+                  href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20earning%20from%20sports%20betting%20investment."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#1ebe57] text-white font-bold text-lg px-10 py-5 rounded-xl transition-all shadow-xl shadow-green-500/20 hover:shadow-green-500/40 hover:-translate-y-0.5"
@@ -889,7 +939,7 @@ export default function App() {
 
               <div className="mt-10 space-y-4">
                 <a
-                  href="https://wa.me/1234567890"
+                  href="https://wa.me/2347087521891"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 group p-5 rounded-xl bg-dark-600/40 border border-lime-400/5 hover:border-[#25D366]/30 transition-all"
@@ -954,7 +1004,7 @@ export default function App() {
                   const text = encodeURIComponent(
                     `Hello Arbalist Capital! My name is ${name}. I'm interested in the ${plan} plan. ${message}`
                   );
-                  window.open(`https://wa.me/1234567890?text=${text}`, '_blank');
+                  window.open(`https://wa.me/2347087521891?text=${text}`, '_blank');
                 }}
                 className="space-y-5"
               >
@@ -984,9 +1034,12 @@ export default function App() {
                     name="plan"
                     className="w-full bg-dark-700/60 border border-lime-400/10 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-lime-400/40 focus:ring-1 focus:ring-lime-400/20 transition-all"
                   >
-                    <option value="Starter">Starter — $100 min</option>
-                    <option value="Professional" selected>Professional — $500 min</option>
-                    <option value="Elite">Elite — $2,000 min</option>
+                    <option value="Bronze">Bronze — $50,000</option>
+                    <option value="Silver">Silver — $100,000</option>
+                    <option value="Gold">Gold — $200,000</option>
+                    <option value="Platinum">Platinum — $300,000</option>
+                    <option value="Diamond">Diamond — $500,000</option>
+                    <option value="Elite">Elite — $1,000,000+</option>
                   </select>
                 </div>
                 <div>
@@ -1030,7 +1083,7 @@ export default function App() {
                 analytics with expert sports knowledge to deliver consistent, high-yield returns for our investors worldwide.
               </p>
               <a
-                href="https://wa.me/1234567890"
+                href="https://wa.me/2347087521891"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-6 inline-flex items-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/20 text-[#25D366] font-semibold text-sm px-5 py-2.5 rounded-xl transition-all"
