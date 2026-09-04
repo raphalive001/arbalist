@@ -112,7 +112,7 @@ function LiveOddsTicker() {
 function WhatsAppFAB() {
   return (
     <a
-      href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
+      href="https://wa.me/2348037565647?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
       target="_blank"
       rel="noopener noreferrer"
       className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold px-5 py-3.5 rounded-full shadow-2xl animate-pulse-glow transition-all duration-300 hover:scale-105"
@@ -353,7 +353,7 @@ export default function App() {
               </a>
             ))}
             <a
-              href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing."
+              href="https://wa.me/2348037565647?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing."
               target="_blank"
               rel="noopener noreferrer"
               className="ml-2 bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold text-sm px-6 py-2.5 rounded-lg hover:from-lime-300 hover:to-lime-400 transition-all shadow-lg shadow-lime-400/20 hover:shadow-lime-400/40"
@@ -383,7 +383,7 @@ export default function App() {
                 </a>
               ))}
               <a
-                href="https://wa.me/2347087521891"
+                href="https://wa.me/2348037565647"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block mt-4 text-center bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold text-sm px-5 py-3 rounded-lg"
@@ -440,7 +440,7 @@ export default function App() {
 
               <div className="animate-fade-in-up delay-400 mt-10 flex flex-col sm:flex-row gap-4">
                 <a
-                  href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
+                  href="https://wa.me/2348037565647?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20investing%20in%20sports%20betting."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold text-base px-8 py-4 rounded-xl hover:from-lime-300 hover:to-lime-400 transition-all shadow-xl shadow-lime-400/20 hover:shadow-lime-400/40 hover:-translate-y-0.5"
@@ -763,7 +763,7 @@ export default function App() {
                 </div>
 
                 <a
-                  href={`https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20invest%20in%20the%20${plan.name}%20Plan%20(${plan.deposit}).`}
+                  href={`https://wa.me/2348037565647?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20invest%20in%20the%20${plan.name}%20Plan%20(${plan.deposit}).`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl transition-all ${
@@ -904,7 +904,7 @@ export default function App() {
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
                 <a
-                  href="https://wa.me/2347087521891?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20earning%20from%20sports%20betting%20investment."
+                  href="https://wa.me/2348037565647?text=Hello%20Arbalist%20Capital%2C%20I%20want%20to%20start%20earning%20from%20sports%20betting%20investment."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#1ebe57] text-white font-bold text-lg px-10 py-5 rounded-xl transition-all shadow-xl shadow-green-500/20 hover:shadow-green-500/40 hover:-translate-y-0.5"
@@ -939,7 +939,7 @@ export default function App() {
 
               <div className="mt-10 space-y-4">
                 <a
-                  href="https://wa.me/2347087521891"
+                  href="https://wa.me/2348037565647"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 group p-5 rounded-xl bg-dark-600/40 border border-lime-400/5 hover:border-[#25D366]/30 transition-all"
@@ -1004,7 +1004,7 @@ export default function App() {
                   const text = encodeURIComponent(
                     `Hello Arbalist Capital! My name is ${name}. I'm interested in the ${plan} plan. ${message}`
                   );
-                  window.open(`https://wa.me/2347087521891?text=${text}`, '_blank');
+                  window.open(`https://wa.me/2348037565647?text=${text}`, '_blank');
                 }}
                 className="space-y-5"
               >
@@ -1083,7 +1083,7 @@ export default function App() {
                 analytics with expert sports knowledge to deliver consistent, high-yield returns for our investors worldwide.
               </p>
               <a
-                href="https://wa.me/2347087521891"
+                href="https://wa.me/2348037565647"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-6 inline-flex items-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/20 text-[#25D366] font-semibold text-sm px-5 py-2.5 rounded-xl transition-all"
