@@ -321,7 +321,9 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activePlan, setActivePlan] = useState(3);
-  const [showAllPlans, setShowAllPlans] = useState(false);
+  const [showAllPlans, setShowAllPlans] = useState(
+    () => window.location.pathname === '/plans'
+  );
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50);
@@ -329,10 +331,9 @@ export default function App() {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
-  // Router: check path on mount and listen for popstate
+  // Router: listen for browser back/forward navigation
   useEffect(() => {
     const checkPath = () => setShowAllPlans(window.location.pathname === '/plans');
-    checkPath();
     window.addEventListener('popstate', checkPath);
     return () => window.removeEventListener('popstate', checkPath);
   }, []);
