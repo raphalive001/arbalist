@@ -172,10 +172,10 @@ function AllPlansPage() {
       {/* NAV */}
       <nav className="sticky top-0 z-40 bg-dark-800/95 backdrop-blur-xl border-b border-lime-400/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
-          <a href="/" className="flex items-center gap-3 group">
+          <a href="#/" className="flex items-center gap-3 group">
             <BrandLogo size="md" />
           </a>
-          <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-lime-400 transition-colors">
+          <a href="#/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-lime-400 transition-colors">
             <ArrowRight className="w-4 h-4 rotate-180" />
             Back to Home
           </a>
@@ -322,7 +322,7 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [activePlan, setActivePlan] = useState(3);
   const [showAllPlans, setShowAllPlans] = useState(
-    () => window.location.pathname === '/plans'
+    () => window.location.hash === '#/plans'
   );
 
   useEffect(() => {
@@ -331,11 +331,15 @@ export default function App() {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
-  // Router: listen for browser back/forward navigation
+  // Router: listen for hash changes and browser back/forward
   useEffect(() => {
-    const checkPath = () => setShowAllPlans(window.location.pathname === '/plans');
+    const checkPath = () => setShowAllPlans(window.location.hash === '#/plans');
+    window.addEventListener('hashchange', checkPath);
     window.addEventListener('popstate', checkPath);
-    return () => window.removeEventListener('popstate', checkPath);
+    return () => {
+      window.removeEventListener('hashchange', checkPath);
+      window.removeEventListener('popstate', checkPath);
+    };
   }, []);
 
   // Intercept anchor clicks for SPA routing
@@ -344,10 +348,15 @@ export default function App() {
       const anchor = (e.target as HTMLElement).closest('a');
       if (!anchor) return;
       const href = anchor.getAttribute('href');
-      if (href === '/plans' || href === '/') {
+      if (href === '/plans' || href === '/' || href === '#/plans' || href === '#/') {
         e.preventDefault();
-        window.history.pushState({}, '', href);
-        setShowAllPlans(href === '/plans');
+        if (href === '/plans' || href === '#/plans') {
+          window.location.hash = '#/plans';
+          setShowAllPlans(true);
+        } else {
+          window.location.hash = '';
+          setShowAllPlans(false);
+        }
         window.scrollTo(0, 0);
       }
     };
@@ -756,7 +765,7 @@ export default function App() {
           {/* View All Plans */}
           <div className="mt-12 text-center">
             <a
-              href="/plans"
+              href="#/plans"
               className="inline-flex items-center gap-3 border-2 border-lime-400/30 text-lime-400 font-bold text-base px-10 py-4 rounded-xl hover:bg-lime-400/10 hover:border-lime-400/60 transition-all duration-300"
             >
               View All Plans
