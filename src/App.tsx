@@ -17,7 +17,6 @@ import {
   Lock,
   LineChart,
   Clock,
-  Star,
   Activity,
 } from 'lucide-react';
 
@@ -362,7 +361,6 @@ export default function App() {
     { label: 'How It Works', href: '#how-it-works' },
     { label: 'Performance', href: '#performance' },
     { label: 'Plans', href: '#plans' },
-    { label: 'Testimonials', href: '#testimonials' },
     { label: 'FAQ', href: '#faq' },
     { label: 'Contact', href: '#contact' },
   ];
@@ -388,13 +386,6 @@ export default function App() {
     { name: 'American Football', emoji: '🏈', winRate: '93%', events: '50+/week' },
     { name: 'Boxing / MMA', emoji: '🥊', winRate: '90%', events: '30+/week' },
     { name: 'Baseball', emoji: '⚾', winRate: '88%', events: '120+/week' },
-  ];
-
-  const testimonials = [
-    { name: 'Marcus T.', location: 'London, UK', text: 'I was skeptical at first, but Arbalist Capital turned my ₦500K into ₦2.8M in just 3 months. Their team is transparent and professional.', rating: 5, profit: '+460%' },
-    { name: 'Sofia R.', location: 'Dubai, UAE', text: 'The daily reports keep me informed and the returns are incredible. I\'ve never seen such consistent results in sports investing.', rating: 5, profit: '+320%' },
-    { name: 'James K.', location: 'New York, USA', text: 'Best decision I made this year. The higher plans give me access to opportunities I didn\'t even know existed. Highly recommend.', rating: 5, profit: '+580%' },
-    { name: 'Amara O.', location: 'Lagos, Nigeria', text: 'Withdrawals are fast and the WhatsApp support is always responsive. Arbalist Capital is the real deal for sports investment.', rating: 5, profit: '+290%' },
   ];
 
   const faqs = [
@@ -764,36 +755,6 @@ export default function App() {
               <ArrowRight className="w-5 h-5" />
             </a>
             <p className="mt-3 text-sm text-gray-500">Plans from ₦50.5K to ₦5M available</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ──── TESTIMONIALS ──── */}
-      <Section id="testimonials" className="py-24 lg:py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-lime-400 font-semibold text-sm tracking-widest uppercase">Testimonials</span>
-            <h2 className="mt-4 text-4xl lg:text-5xl font-bold font-serif">
-              What Our Investors <span className="bg-gradient-to-r from-lime-300 to-emerald-400 bg-clip-text text-transparent">Say</span>
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            {testimonials.map((t, i) => (
-              <div key={i} className="bg-dark-600/40 border border-lime-400/5 hover:border-lime-400/15 rounded-2xl p-8 transition-all duration-300 glow-card">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex gap-1">{Array.from({ length: t.rating }).map((_, j) => <Star key={j} className="w-4 h-4 fill-lime-400 text-lime-400" />)}</div>
-                  <span className="text-sm font-bold text-lime-400 bg-lime-400/10 px-3 py-1 rounded-full">{t.profit}</span>
-                </div>
-                <p className="text-gray-300 leading-relaxed mb-6 italic">"{t.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lime-400 to-emerald-400 flex items-center justify-center text-dark-800 font-bold text-sm">{t.name.charAt(0)}</div>
-                  <div>
-                    <p className="font-semibold text-white text-sm">{t.name}</p>
-                    <p className="text-xs text-gray-500">{t.location}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </Section>
