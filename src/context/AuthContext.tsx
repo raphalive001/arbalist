@@ -1,294 +1,177 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import {
+  supabase, authHelpers, profileHelpers, kycHelpers,
+  investmentHelpers, transactionHelpers, withdrawalHelpers,
+  type Profile, type KYC, type Investment, type Transaction, type WithdrawalRequest,
+} from '../lib/supabase';
 
-export interface KYCData {
-  fullName: string;
-  email: string;
-  phone: string;
-  nin: string; // National ID Number
-  bankName: string;
-  accountNumber: string;
-  accountName: string;
-  selfieUrl?: string;
-  idDocUrl?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt?: string;
-}
+export type { Profile, KYC, Investment, Transaction, WithdrawalRequest };
 
-export interface Transaction {
-  id: string;
-  type: 'deposit' | 'withdrawal' | 'roi' | 'referral_bonus';
-  amount: number;
-  status: 'pending' | 'completed' | 'failed';
-  description: string;
-  createdAt: string;
-  reference?: string;
-}
-
-export interface Investment {
-  id: string;
-  planLabel: string;
-  depositAmount: number;
-  dailyRate: number;
-  startDate: string;
-  totalEarned: number;
-  status: 'active' | 'completed';
-}
-
-export interface User {
-  id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  referralCode: string;
-  referredBy?: string;
-  referralCount: number;
-  referralEarnings: number;
-  walletBalance: number;
-  totalDeposited: number;
-  totalWithdrawn: number;
-  totalROI: number;
-  kyc: KYCData | null;
-  investments: Investment[];
+export interface UserState {
+  profile:      Profile;
+  kyc:          KYC | null;
+  investments:  Investment[];
   transactions: Transaction[];
-  twoFAEnabled: boolean;
-  lastLogin: string;
-  createdAt: string;
+  withdrawals:  WithdrawalRequest[];
 }
 
 interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  register: (data: RegisterData) => Promise<{ success: boolean; message: string }>;
-  logout: () => void;
-  updateKYC: (data: KYCData) => void;
-  addTransaction: (tx: Omit<Transaction, 'id' | 'createdAt'>) => void;
-  refreshROI: () => void;
+  user:               UserState | null;
+  isAuthenticated:    boolean;
+  isLoading:          boolean;
+  login:              (email: string, password: string)   => Promise<{ success: boolean; message: string }>;
+  register:           (data: RegisterData)                => Promise<{ success: boolean; message: string }>;
+  logout:             ()                                  => Promise<void>;
+  submitKYC:          (data: KYCSubmit)                   => Promise<{ success: boolean; message: string }>;
+  activateInvestment: (label: string, amount: number, ref: string) => Promise<{ success: boolean; message: string }>;
+  requestWithdrawal:  (amount: number)                    => Promise<{ success: boolean; message: string }>;
+  refreshUser:        ()                                  => Promise<void>;
 }
 
 interface RegisterData {
-  fullName: string;
-  email: string;
-  phone: string;
-  password: string;
-  referralCode?: string;
+  fullName: string; email: string; phone: string;
+  password: string; referralCode?: string;
+}
+interface KYCSubmit {
+  nin: string; bank_name: string; account_number: string; account_name: string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const STORAGE_KEY = 'arbalist_user';
-const USERS_KEY = 'arbalist_users_db';
-
-function generateId() {
-  return Math.random().toString(36).substr(2, 9).toUpperCase();
-}
-
-function generateReferralCode(name: string) {
-  return name.split(' ')[0].toUpperCase().slice(0, 4) + Math.random().toString(36).substr(2, 4).toUpperCase();
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser]         = useState<UserState | null>(null);
+  const [isLoading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadUserData = useCallback(async (userId: string) => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setUser(parsed);
-      }
-    } catch {}
-    setIsLoading(false);
+      const [
+        { data: profile },
+        { data: kyc },
+        { data: investments },
+        { data: transactions },
+        { data: withdrawals },
+      ] = await Promise.all([
+        profileHelpers.getProfile(userId),
+        kycHelpers.getKYC(userId),
+        investmentHelpers.getInvestments(userId),
+        transactionHelpers.getTransactions(userId),
+        withdrawalHelpers.getWithdrawals(userId),
+      ]);
+      if (!profile) return;
+      setUser({
+        profile,
+        kyc:          kyc          ?? null,
+        investments:  investments  ?? [],
+        transactions: transactions ?? [],
+        withdrawals:  withdrawals  ?? [],
+      });
+    } catch (err) {
+      console.error('loadUserData:', err);
+    }
   }, []);
 
-  // Auto ROI accumulation every minute (simulated)
   useEffect(() => {
-    if (!user) return;
-    const interval = setInterval(() => {
-      setUser(prev => {
-        if (!prev) return prev;
-        const activeInvestments = prev.investments.filter(i => i.status === 'active');
-        if (activeInvestments.length === 0) return prev;
-        
-        // Add ~1 minute worth of ROI (1.3% / day / 1440 minutes)
-        const minuteROI = activeInvestments.reduce((sum, inv) => {
-          return sum + (inv.depositAmount * 0.013) / 1440;
-        }, 0);
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (session?.user) {
+        loadUserData(session.user.id).finally(() => { if (mounted) setLoading(false); });
+      } else { setLoading(false); }
+    });
 
-        const updated = {
-          ...prev,
-          totalROI: prev.totalROI + minuteROI,
-          walletBalance: prev.walletBalance + minuteROI,
-          investments: prev.investments.map(inv =>
-            inv.status === 'active'
-              ? { ...inv, totalEarned: inv.totalEarned + (inv.depositAmount * 0.013) / 1440 }
-              : inv
-          ),
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        return updated;
-      });
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [user?.id]);
-
-  const saveUser = (u: User) => {
-    setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-    // Also update in "db"
-    try {
-      const db = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-      db[u.email] = { ...u, password: db[u.email]?.password };
-      localStorage.setItem(USERS_KEY, JSON.stringify(db));
-    } catch {}
-  };
-
-  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    try {
-      const db = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-      const entry = db[email.toLowerCase()];
-      if (!entry) {
-        setIsLoading(false);
-        return { success: false, message: 'No account found with this email.' };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      if (event === 'SIGNED_IN' && session?.user) {
+        await profileHelpers.updateLastLogin(session.user.id);
+        await loadUserData(session.user.id);
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null); setLoading(false);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        loadUserData(session.user.id);
       }
-      if (entry.password !== btoa(password)) {
-        setIsLoading(false);
-        return { success: false, message: 'Incorrect password.' };
-      }
-      const u: User = { ...entry, lastLogin: new Date().toISOString() };
-      delete (u as any).password;
-      saveUser(u);
-      setIsLoading(false);
-      return { success: true, message: 'Login successful!' };
-    } catch {
-      setIsLoading(false);
-      return { success: false, message: 'Something went wrong. Please try again.' };
-    }
+    });
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, [loadUserData]);
+
+  // Realtime wallet + transaction updates
+  useEffect(() => {
+    if (!user?.profile?.id) return;
+    const channel = supabase
+      .channel(`user:${user.profile.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.profile.id}` },
+        (p) => setUser(prev => prev ? { ...prev, profile: p.new as Profile } : prev))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.profile.id}` },
+        (p) => setUser(prev => prev ? { ...prev, transactions: [p.new as Transaction, ...prev.transactions] } : prev))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.profile?.id]);
+
+  const login = async (email: string, password: string) => {
+    setLoading(true);
+    const { error } = await authHelpers.signIn(email, password);
+    setLoading(false);
+    if (error) return { success: false, message: error.message };
+    return { success: true, message: 'Login successful!' };
   };
 
-  const register = async (data: RegisterData): Promise<{ success: boolean; message: string }> => {
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    try {
-      const db = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-      if (db[data.email.toLowerCase()]) {
-        setIsLoading(false);
-        return { success: false, message: 'An account with this email already exists.' };
-      }
-      
-      // Handle referral
-      let referredBy: string | undefined;
-      let referralBonusTx: Transaction | undefined;
-      if (data.referralCode) {
-        const referrer = Object.values(db).find((u: any) => u.referralCode === data.referralCode.toUpperCase()) as any;
-        if (referrer) {
-          referredBy = referrer.referralCode;
-          // Give referrer a bonus
-          referrer.referralCount = (referrer.referralCount || 0) + 1;
-          referrer.referralEarnings = (referrer.referralEarnings || 0) + 500;
-          referrer.walletBalance = (referrer.walletBalance || 0) + 500;
-          referrer.transactions = referrer.transactions || [];
-          referrer.transactions.unshift({
-            id: generateId(),
-            type: 'referral_bonus',
-            amount: 500,
-            status: 'completed',
-            description: `Referral bonus from ${data.fullName}`,
-            createdAt: new Date().toISOString(),
-          });
-          db[referrer.email] = referrer;
-          if (localStorage.getItem(STORAGE_KEY)) {
-            const currentUser = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-            if (currentUser.email === referrer.email) {
-              setUser(referrer);
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(referrer));
-            }
-          }
-        }
-      }
-
-      const newUser: User = {
-        id: generateId(),
-        fullName: data.fullName,
-        email: data.email.toLowerCase(),
-        phone: data.phone,
-        referralCode: generateReferralCode(data.fullName),
-        referredBy,
-        referralCount: 0,
-        referralEarnings: 0,
-        walletBalance: 0,
-        totalDeposited: 0,
-        totalWithdrawn: 0,
-        totalROI: 0,
-        kyc: null,
-        investments: [],
-        transactions: [],
-        twoFAEnabled: false,
-        lastLogin: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
-
-      db[data.email.toLowerCase()] = { ...newUser, password: btoa(data.password) };
-      localStorage.setItem(USERS_KEY, JSON.stringify(db));
-      saveUser(newUser);
-      setIsLoading(false);
-      return { success: true, message: 'Account created successfully!' };
-    } catch {
-      setIsLoading(false);
-      return { success: false, message: 'Registration failed. Please try again.' };
-    }
+  const register = async (data: RegisterData) => {
+    setLoading(true);
+    const { error } = await authHelpers.signUp(data.email, data.password, {
+      full_name: data.fullName, phone: data.phone,
+      referred_by: data.referralCode?.toUpperCase(),
+    });
+    setLoading(false);
+    if (error) return { success: false, message: error.message };
+    return { success: true, message: 'Account created! Check your email to verify, then sign in.' };
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
+  const logout = async () => { await authHelpers.signOut(); setUser(null); };
+
+  const submitKYC = async (data: KYCSubmit) => {
+    if (!user) return { success: false, message: 'Not authenticated' };
+    const { error } = await kycHelpers.submitKYC({
+      user_id: user.profile.id, full_name: user.profile.full_name, ...data,
+    });
+    if (error) return { success: false, message: error.message };
+    await loadUserData(user.profile.id);
+    return { success: true, message: 'KYC submitted for review.' };
   };
 
-  const updateKYC = (data: KYCData) => {
-    if (!user) return;
-    const updated = { ...user, kyc: data };
-    saveUser(updated);
+  const activateInvestment = async (label: string, amount: number, ref: string) => {
+    if (!user) return { success: false, message: 'Not authenticated' };
+    if (user.kyc?.status !== 'approved')
+      return { success: false, message: 'KYC must be approved before investing.' };
+    const { error } = await investmentHelpers.activateInvestment(user.profile.id, label, amount, ref);
+    if (error) return { success: false, message: error.message };
+    await loadUserData(user.profile.id);
+    return { success: true, message: 'Investment activated! Earning 1.3% daily.' };
   };
 
-  const addTransaction = (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
-    if (!user) return;
-    const newTx: Transaction = {
-      ...tx,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-    };
-    const updated = {
-      ...user,
-      transactions: [newTx, ...user.transactions],
-      walletBalance: tx.type === 'deposit' || tx.type === 'roi' || tx.type === 'referral_bonus'
-        ? user.walletBalance + tx.amount
-        : user.walletBalance - tx.amount,
-      totalDeposited: tx.type === 'deposit' ? user.totalDeposited + tx.amount : user.totalDeposited,
-      totalWithdrawn: tx.type === 'withdrawal' ? user.totalWithdrawn + tx.amount : user.totalWithdrawn,
-    };
-    saveUser(updated);
+  const requestWithdrawal = async (amount: number) => {
+    if (!user) return { success: false, message: 'Not authenticated' };
+    if (user.kyc?.status !== 'approved')
+      return { success: false, message: 'KYC must be approved to withdraw.' };
+    const { error } = await withdrawalHelpers.submitWithdrawal({
+      user_id: user.profile.id, amount,
+      bank_name:      user.kyc.bank_name,
+      account_number: user.kyc.account_number,
+      account_name:   user.kyc.account_name,
+    });
+    if (error) return { success: false, message: error.message };
+    await loadUserData(user.profile.id);
+    return { success: true, message: 'Withdrawal requested. Processing within 24 hours.' };
   };
 
-  const refreshROI = () => {
-    if (!user) return;
-    const active = user.investments.filter(i => i.status === 'active');
-    if (!active.length) return;
-    const totalEarned = active.reduce((s, i) => {
-      const days = (Date.now() - new Date(i.startDate).getTime()) / 86400000;
-      return s + i.depositAmount * 0.013 * days;
-    }, 0);
-    const updated = { ...user, totalROI: totalEarned };
-    saveUser(updated);
+  const refreshUser = async () => {
+    if (user?.profile?.id) await loadUserData(user.profile.id);
   };
 
   return (
     <AuthContext.Provider value={{
       user, isAuthenticated: !!user, isLoading,
-      login, register, logout, updateKYC, addTransaction, refreshROI,
+      login, register, logout, submitKYC,
+      activateInvestment, requestWithdrawal, refreshUser,
     }}>
       {children}
     </AuthContext.Provider>
