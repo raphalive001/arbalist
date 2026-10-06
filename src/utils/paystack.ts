@@ -1,19 +1,10 @@
-/* ─── Paystack Payment Gateway Integration ─── */
-// Replace with your actual Paystack public key
-const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-
-declare global {
-  interface Window {
-    PaystackPop?: {
-      setup: (config: PaystackConfig) => { openIframe: () => void };
-    };
-  }
-}
+// ─── Paystack Payment Gateway ─────────────────────────────────────────────────
+// Single global declaration — no duplicate
 
 interface PaystackConfig {
   key: string;
   email: string;
-  amount: number; // in kobo
+  amount: number;
   currency: string;
   ref: string;
   metadata?: Record<string, unknown>;
@@ -30,9 +21,21 @@ interface PaystackResponse {
   trxref: string;
 }
 
+// Single authoritative global declaration
+declare global {
+  interface Window {
+    PaystackPop: {
+      setup: (config: PaystackConfig) => { openIframe: () => void };
+    };
+  }
+}
+
+// Use import.meta.env — vite-env.d.ts provides the type
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY ?? 'pk_test_placeholder';
+
 export interface PaymentOptions {
   email: string;
-  amount: number; // in Naira
+  amount: number; // Naira
   fullName: string;
   phone: string;
   planLabel: string;
@@ -41,16 +44,21 @@ export interface PaymentOptions {
   onCancel: () => void;
 }
 
-function generateReference(userId: string): string {
-  return `ARB-${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+export function generateReference(userId: string): string {
+  return `ARB-${userId.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
 export function loadPaystackScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.PaystackPop) { resolve(); return; }
-    const existing = document.querySelector('script[src*="paystack"]');
-    if (existing) { resolve(); return; }
+    const existing = document.getElementById('paystack-script');
+    if (existing) {
+      // Script tag exists but PaystackPop not ready yet — wait for load
+      existing.addEventListener('load', () => resolve());
+      return;
+    }
     const script = document.createElement('script');
+    script.id = 'paystack-script';
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
     script.onload = () => resolve();
@@ -60,18 +68,10 @@ export function loadPaystackScript(): Promise<void> {
 }
 
 export async function initiatePayment(options: PaymentOptions): Promise<void> {
-  try {
-    await loadPaystackScript();
-  } catch {
-    // Fallback: open Paystack hosted page
-    const ref = generateReference(options.userId);
-    const url = `https://paystack.com/pay/${PAYSTACK_PUBLIC_KEY}?amount=${options.amount * 100}&email=${options.email}&ref=${ref}`;
-    window.open(url, '_blank');
-    return;
-  }
+  await loadPaystackScript();
 
   if (!window.PaystackPop) {
-    throw new Error('Paystack not loaded');
+    throw new Error('Paystack failed to initialise');
   }
 
   const ref = generateReference(options.userId);
@@ -79,38 +79,25 @@ export async function initiatePayment(options: PaymentOptions): Promise<void> {
   const handler = window.PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
     email: options.email,
-    amount: options.amount * 100, // convert to kobo
+    amount: Math.round(options.amount * 100), // kobo
     currency: 'NGN',
     ref,
     metadata: {
       custom_fields: [
-        { display_name: 'Full Name', variable_name: 'full_name', value: options.fullName },
-        { display_name: 'Phone', variable_name: 'phone', value: options.phone },
-        { display_name: 'Plan', variable_name: 'plan', value: options.planLabel },
-        { display_name: 'User ID', variable_name: 'user_id', value: options.userId },
+        { display_name: 'Full Name',  variable_name: 'full_name',  value: options.fullName },
+        { display_name: 'Phone',      variable_name: 'phone',      value: options.phone },
+        { display_name: 'Plan',       variable_name: 'plan',       value: options.planLabel },
+        { display_name: 'User ID',    variable_name: 'user_id',    value: options.userId },
       ],
     },
     callback: (response: PaystackResponse) => {
-      if (response.status === 'success') {
-        options.onSuccess(response.reference);
-      } else {
-        options.onCancel();
-      }
+      if (response.status === 'success') options.onSuccess(response.reference);
+      else options.onCancel();
     },
     onClose: options.onCancel,
   });
 
   handler.openIframe();
-}
-
-// Verify payment (in production this MUST be done server-side)
-export async function verifyPayment(reference: string): Promise<{ verified: boolean; amount: number }> {
-  // IMPORTANT: In production, call your backend endpoint which verifies with Paystack server-to-server.
-  // Never use the secret key on the client!
-  // For demo purposes, we simulate verification:
-  console.log(`[DEMO] Verifying payment reference: ${reference}`);
-  await new Promise(r => setTimeout(r, 500));
-  return { verified: true, amount: 0 };
 }
 
 export const PLAN_AMOUNTS: Record<string, number> = {
