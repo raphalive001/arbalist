@@ -55,6 +55,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       kyc_documents: {
         Row: {
@@ -99,6 +100,7 @@ export interface Database {
           reviewed_at?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       investments: {
         Row: {
@@ -140,6 +142,7 @@ export interface Database {
           last_credit_date?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       transactions: {
         Row: {
@@ -184,6 +187,7 @@ export interface Database {
           account_name?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       referrals: {
         Row: {
@@ -210,6 +214,7 @@ export interface Database {
           status?: "pending" | "credited";
           created_at?: string;
         };
+        Relationships: [];
       };
     };
     Views: {

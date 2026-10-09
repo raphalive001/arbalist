@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, AlertCircle, CheckCircle, Upload, User, CreditCard, Building2, ChevronRight, Clock } from 'lucide-react';
+import { Shield, AlertCircle, CheckCircle, User, CreditCard, Building2, ChevronRight, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { sanitizeInput, validateAccountNumber, validateNIN } from '../utils/security';
 
@@ -15,21 +15,26 @@ const BANKS = [
 ];
 
 export default function KYCPage({ onComplete }: Props) {
-  const { user, updateKYC } = useAuth();
-  const [step, setStep] = useState(1);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { user, submitKYC } = useAuth();
+  const profile = user?.profile;
+  const kyc     = user?.kyc;
+
+  const [step, setStep]         = useState(1);
+  const [errors, setErrors]     = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(user?.kyc?.status === 'pending' || user?.kyc?.status === 'approved');
+  const [submitted, setSubmitted]   = useState(
+    kyc?.status === 'pending' || kyc?.status === 'verified'
+  );
 
   const [form, setForm] = useState({
-    fullName: user?.fullName || '',
-    nin: '',
-    bankName: user?.kyc?.bankName || '',
-    accountNumber: user?.kyc?.accountNumber || '',
-    accountName: user?.kyc?.accountName || '',
+    fullName:      profile?.full_name ?? '',
+    nin:           '',
+    bankName:      '',
+    accountNumber: '',
+    accountName:   '',
   });
 
-  if (user?.kyc?.status === 'approved') {
+  if (kyc?.status === 'verified') {
     return (
       <div className="min-h-screen bg-dark-800 flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
@@ -47,7 +52,7 @@ export default function KYCPage({ onComplete }: Props) {
     );
   }
 
-  if (submitted || user?.kyc?.status === 'pending') {
+  if (submitted || kyc?.status === 'pending') {
     return (
       <div className="min-h-screen bg-dark-800 flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
@@ -57,9 +62,8 @@ export default function KYCPage({ onComplete }: Props) {
           <h1 className="text-2xl font-bold font-serif text-white mb-3">KYC Under Review</h1>
           <p className="text-gray-400 mb-4">Your documents are being reviewed by our compliance team. This usually takes 1–24 hours.</p>
           <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5 text-left mb-8 space-y-2">
-            <p className="text-sm text-gray-400"><span className="text-white font-semibold">Name:</span> {user?.fullName}</p>
-            <p className="text-sm text-gray-400"><span className="text-white font-semibold">Bank:</span> {user?.kyc?.bankName}</p>
-            <p className="text-sm text-gray-400"><span className="text-white font-semibold">Account:</span> {user?.kyc?.accountName}</p>
+            <p className="text-sm text-gray-400"><span className="text-white font-semibold">Name:</span> {profile?.full_name}</p>
+            <p className="text-sm text-gray-400"><span className="text-white font-semibold">Status:</span> Under Review</p>
           </div>
           <button onClick={onComplete}
             className="bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold px-10 py-4 rounded-xl hover:from-lime-300 transition-all">
@@ -87,20 +91,16 @@ export default function KYCPage({ onComplete }: Props) {
   const handleSubmit = async () => {
     if (!validateStep(2)) return;
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1200));
-    updateKYC({
-      fullName: sanitizeInput(form.fullName),
-      email: user!.email,
-      phone: user!.phone,
-      nin: form.nin,
-      bankName: form.bankName,
-      accountNumber: form.accountNumber,
-      accountName: sanitizeInput(form.accountName),
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
+    const result = await submitKYC({
+      nin:            form.nin,
+      bank_name:      form.bankName,
+      account_number: form.accountNumber,
+      account_name:   sanitizeInput(form.accountName),
     });
     setSubmitting(false);
-    setSubmitted(true);
+    if (result.success) {
+      setSubmitted(true);
+    }
   };
 
   return (
@@ -239,11 +239,11 @@ export default function KYCPage({ onComplete }: Props) {
 
               <div className="space-y-3 bg-dark-700/40 rounded-xl p-5 border border-lime-400/10">
                 {[
-                  { label: 'Full Name', value: form.fullName },
-                  { label: 'NIN', value: '***-***-' + form.nin.slice(-4) },
-                  { label: 'Bank', value: form.bankName },
-                  { label: 'Account Number', value: '*'.repeat(6) + form.accountNumber.slice(-4) },
-                  { label: 'Account Name', value: form.accountName },
+                  { label: 'Full Name',       value: form.fullName },
+                  { label: 'NIN',             value: '***-***-' + form.nin.slice(-4) },
+                  { label: 'Bank',            value: form.bankName },
+                  { label: 'Account Number',  value: '*'.repeat(6) + form.accountNumber.slice(-4) },
+                  { label: 'Account Name',    value: form.accountName },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between">
                     <span className="text-xs text-gray-500">{label}</span>

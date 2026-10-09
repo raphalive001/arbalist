@@ -22,11 +22,11 @@ export default function ReferralPage() {
     if (!profile) return;
     supabase
       .from("referrals")
-      .select("*, referred:referred_id(full_name, email, created_at)")
+      .select("*")
       .eq("referrer_id", profile.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        if (data) setReferrals(data as Referral[]);
+        if (data) setReferrals(data.map(r => ({ ...r, referred: null })) as Referral[]);
         setLoading(false);
       });
   }, [profile]);

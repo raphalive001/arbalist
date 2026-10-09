@@ -32,7 +32,8 @@ interface RegisterData {
   fullName: string; email: string; phone: string;
   password: string; referralCode?: string;
 }
-interface KYCSubmit {
+
+export interface KYCSubmit {
   nin: string; bank_name: string; account_number: string; account_name: string;
 }
 
@@ -118,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     setLoading(true);
     const { error } = await authHelpers.signUp(data.email, data.password, {
-      full_name: data.fullName, phone: data.phone,
+      full_name:   data.fullName,
+      phone:       data.phone,
       referred_by: data.referralCode?.toUpperCase(),
     });
     setLoading(false);
@@ -130,18 +132,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const submitKYC = async (data: KYCSubmit) => {
     if (!user) return { success: false, message: 'Not authenticated' };
+    // Insert KYC document record (NIN used as doc_number)
     const { error } = await kycHelpers.submitKYC({
-      user_id: user.profile.id, full_name: user.profile.full_name, ...data,
+      user_id:    user.profile.id,
+      doc_type:   'national_id',
+      doc_number: data.nin,
+      front_url:  'pending',
+      selfie_url: 'pending',
     });
     if (error) return { success: false, message: error.message };
+    // Mark kyc_status on profile as submitted
+    await supabase.from('profiles').update({ kyc_status: 'submitted' }).eq('id', user.profile.id);
+    // Store bank details as a pending withdrawal transaction record for admin reference
+    await supabase.from('transactions').insert({
+      user_id:        user.profile.id,
+      type:           'withdrawal' as const,
+      amount:         0,
+      status:         'pending' as const,
+      reference:      `BANKDETAILS-${Date.now()}`,
+      bank_name:      data.bank_name,
+      account_number: data.account_number,
+      account_name:   data.account_name,
+      description:    'Bank details registered during KYC',
+    });
     await loadUserData(user.profile.id);
     return { success: true, message: 'KYC submitted for review.' };
   };
 
   const activateInvestment = async (label: string, amount: number, ref: string) => {
     if (!user) return { success: false, message: 'Not authenticated' };
-    if (user.kyc?.status !== 'approved')
-      return { success: false, message: 'KYC must be approved before investing.' };
+    if (user.kyc?.status !== 'verified')
+      return { success: false, message: 'KYC must be verified before investing.' };
     const { error } = await investmentHelpers.activateInvestment(user.profile.id, label, amount, ref);
     if (error) return { success: false, message: error.message };
     await loadUserData(user.profile.id);
@@ -150,13 +171,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestWithdrawal = async (amount: number) => {
     if (!user) return { success: false, message: 'Not authenticated' };
-    if (user.kyc?.status !== 'approved')
-      return { success: false, message: 'KYC must be approved to withdraw.' };
+    if (user.kyc?.status !== 'verified')
+      return { success: false, message: 'KYC must be verified to withdraw.' };
+    // Find the most recent bank details stored during KYC
+    const bankTx = user.transactions.find(t =>
+      t.description === 'Bank details registered during KYC' && t.bank_name
+    );
     const { error } = await withdrawalHelpers.submitWithdrawal({
-      user_id: user.profile.id, amount,
-      bank_name:      user.kyc.bank_name,
-      account_number: user.kyc.account_number,
-      account_name:   user.kyc.account_name,
+      user_id:        user.profile.id,
+      amount,
+      bank_name:      bankTx?.bank_name       ?? '',
+      account_number: bankTx?.account_number  ?? '',
+      account_name:   bankTx?.account_name    ?? '',
     });
     if (error) return { success: false, message: error.message };
     await loadUserData(user.profile.id);

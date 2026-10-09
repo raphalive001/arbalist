@@ -34,7 +34,7 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(form.email, form.password, form.fullName, form.referralCode || undefined);
+    const { error } = await signUp(form.email, form.password, form.fullName, form.phone, form.referralCode || undefined);
     setLoading(false);
     if (error) {
       toast.error(error.message);

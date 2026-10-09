@@ -4,24 +4,24 @@ import {
   LogOut, Shield, AlertCircle, CheckCircle, Clock, Activity, BarChart3,
   Bell, Settings, ChevronRight, Plus, Minus, RefreshCw, Eye, EyeOff, Gift,
 } from 'lucide-react';
-import { useAuth, type Investment } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { formatNaira, maskAccountNumber } from '../utils/security';
 import { initiatePayment, PLAN_AMOUNTS } from '../utils/paystack';
 
 const WA_BASE = 'https://wa.me/2349054416277';
 
 // ─── Live ROI Counter ───
-function LiveROICounter({ investment }: { investment: Investment }) {
-  const [earned, setEarned] = useState(investment.totalEarned);
-  const ratePerSecond = (investment.depositAmount * 0.013) / 86400;
+function LiveROICounter({ dailyRate, totalEarned, id }: { dailyRate: number; totalEarned: number; id: string }) {
+  const [earned, setEarned] = useState(totalEarned);
+  const ratePerSecond = dailyRate / 86400;
 
   useEffect(() => {
-    setEarned(investment.totalEarned);
-    const id = setInterval(() => {
+    setEarned(totalEarned);
+    const interval = setInterval(() => {
       setEarned(prev => prev + ratePerSecond);
     }, 1000);
-    return () => clearInterval(id);
-  }, [investment.id, investment.totalEarned]);
+    return () => clearInterval(interval);
+  }, [id, totalEarned, ratePerSecond]);
 
   return (
     <span className="tabular-nums font-mono text-lime-400 font-bold text-lg">
@@ -51,6 +51,8 @@ function StatCard({ icon, label, value, sub, accent = false }: {
 // ─── Invest Modal ───
 function InvestModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (amount: number, plan: string) => void }) {
   const { user } = useAuth();
+  const profile = user?.profile;
+  const kyc = user?.kyc;
   const [selectedPlan, setSelectedPlan] = useState('₦300.5K');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,8 +60,8 @@ function InvestModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const plans = Object.entries(PLAN_AMOUNTS);
 
   const handlePay = async () => {
-    if (!user) return;
-    if (!user.kyc || user.kyc.status !== 'approved') {
+    if (!profile) return;
+    if (!kyc || kyc.status !== 'verified') {
       setError('Please complete KYC verification before investing.');
       return;
     }
@@ -67,13 +69,13 @@ function InvestModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     setError('');
     try {
       await initiatePayment({
-        email: user.email,
+        email: profile.email,
         amount: PLAN_AMOUNTS[selectedPlan],
-        fullName: user.fullName,
-        phone: user.phone,
+        fullName: profile.full_name ?? '',
+        phone: profile.phone ?? '',
         planLabel: selectedPlan,
-        userId: user.id,
-        onSuccess: (ref) => {
+        userId: profile.id,
+        onSuccess: (_ref: string) => {
           setLoading(false);
           onSuccess(PLAN_AMOUNTS[selectedPlan], selectedPlan);
           onClose();
@@ -83,7 +85,7 @@ function InvestModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           setError('Payment was cancelled. Please try again.');
         },
       });
-    } catch (e) {
+    } catch {
       setLoading(false);
       setError('Failed to initialize payment. Please contact support.');
     }
@@ -127,7 +129,7 @@ function InvestModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           </div>
         )}
 
-        {user?.kyc?.status !== 'approved' && (
+        {kyc?.status !== 'verified' && (
           <div className="flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-3 mb-4">
             <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
             <p className="text-xs text-yellow-400">KYC verification required before investing</p>
@@ -150,14 +152,19 @@ function InvestModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 // ─── Withdraw Modal ───
 function WithdrawModal({ onClose, onRequest }: { onClose: () => void; onRequest: (amount: number) => void }) {
-  const { user } = useAuth();
+  const { user, requestWithdrawal } = useAuth();
+  const profile = user?.profile;
+  const kyc = user?.kyc;
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = () => {
+  const walletBalance = profile?.wallet_balance ?? 0;
+
+  const handleSubmit = async () => {
     const n = parseFloat(amount);
     if (!n || n < 500) { setError('Minimum withdrawal is ₦500'); return; }
-    if (n > (user?.walletBalance || 0)) { setError('Insufficient balance'); return; }
+    if (n > walletBalance) { setError('Insufficient balance'); return; }
+    await requestWithdrawal(n);
     onRequest(n);
     onClose();
   };
@@ -170,16 +177,19 @@ function WithdrawModal({ onClose, onRequest }: { onClose: () => void; onRequest:
 
         <div className="bg-dark-700/60 rounded-xl p-4 mb-5 flex justify-between items-center">
           <span className="text-sm text-gray-400">Available Balance</span>
-          <span className="font-bold text-lime-400 text-lg">{formatNaira(user?.walletBalance || 0)}</span>
+          <span className="font-bold text-lime-400 text-lg">{formatNaira(walletBalance)}</span>
         </div>
 
-        {user?.kyc && (
-          <div className="bg-dark-700/60 rounded-xl p-4 mb-5 space-y-1">
-            <p className="text-xs text-gray-500">Withdrawal destination</p>
-            <p className="text-sm font-semibold text-white">{user.kyc.bankName}</p>
-            <p className="text-sm text-gray-300">{user.kyc.accountName} — {maskAccountNumber(user.kyc.accountNumber)}</p>
-          </div>
-        )}
+        {kyc && (() => {
+          const bankTx = user?.transactions.find(t => t.description === 'Bank details registered during KYC' && t.bank_name);
+          return bankTx ? (
+            <div className="bg-dark-700/60 rounded-xl p-4 mb-5 space-y-1">
+              <p className="text-xs text-gray-500">Withdrawal destination</p>
+              <p className="text-sm font-semibold text-white">{bankTx.bank_name}</p>
+              <p className="text-sm text-gray-300">{bankTx.account_name} — {maskAccountNumber(bankTx.account_number ?? '')}</p>
+            </div>
+          ) : null;
+        })()}
 
         <div className="space-y-1.5 mb-5">
           <label className="text-sm font-semibold text-gray-300">Amount (₦)</label>
@@ -191,7 +201,7 @@ function WithdrawModal({ onClose, onRequest }: { onClose: () => void; onRequest:
             />
           </div>
           <div className="flex gap-2 mt-2">
-            {[500, 1000, 5000, user?.walletBalance || 0].map(v => (
+            {[500, 1000, 5000, walletBalance].map(v => (
               <button key={v} onClick={() => setAmount(v.toString())}
                 className="flex-1 text-xs bg-dark-700 text-gray-400 hover:text-lime-400 py-1.5 rounded-lg transition-colors">
                 {v >= 1000 ? formatNaira(v) : `₦${v}`}
@@ -217,7 +227,7 @@ function WithdrawModal({ onClose, onRequest }: { onClose: () => void; onRequest:
 
 // ─── Main Dashboard ───
 export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; onKYC: () => void }) {
-  const { user, logout, addTransaction } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'wallet' | 'investments' | 'referral' | 'settings'>('overview');
   const [showInvest, setShowInvest] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -227,32 +237,55 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
 
   if (!user) return null;
 
+  const profile      = user.profile;
+  const kyc          = user.kyc;
+  const investments  = user.investments;
+  const transactions = user.transactions;
+
+  // Derived stats computed from real data
+  const walletBalance  = profile.wallet_balance ?? 0;
+  const totalEarned    = profile.total_earned ?? 0;
+  const totalInvested  = profile.total_invested ?? 0;
+
+  const totalDeposited = transactions
+    .filter(t => t.type === 'deposit' && t.status === 'success')
+    .reduce((s, t) => s + t.amount, 0);
+
+  const totalWithdrawn = transactions
+    .filter(t => t.type === 'withdrawal' && t.status === 'success')
+    .reduce((s, t) => s + t.amount, 0);
+
+  const referralTxs      = transactions.filter(t => t.type === 'referral_bonus');
+  const referralEarnings = referralTxs.reduce((s, t) => s + t.amount, 0);
+  const referralCount    = referralTxs.length;
+
+  const referralCode = profile.referral_code;
+
+  const kycBadge = kyc?.status === 'verified' ? '✅ Verified' : kyc?.status === 'pending' ? '⏳ Pending' : '⚠️ Not Verified';
+  const kycColor = kyc?.status === 'verified' ? 'text-lime-400' : kyc?.status === 'pending' ? 'text-yellow-400' : 'text-red-400';
+
   const showNotif = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 4000);
   };
 
   const copyReferralLink = () => {
-    const link = `${window.location.origin}${window.location.pathname}?ref=${user.referralCode}`;
+    const link = `${window.location.origin}${window.location.pathname}?ref=${referralCode}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     showNotif('Referral link copied!');
   };
 
-  const handleInvestSuccess = (amount: number, plan: string) => {
-    const ref = 'ARB-' + Math.random().toString(36).substr(2, 8).toUpperCase();
-    addTransaction({ type: 'deposit', amount, status: 'completed', description: `Investment - ${plan}`, reference: ref });
+  const handleInvestSuccess = (_amount: number, _plan: string) => {
+    refreshUser();
     showNotif('Investment activated! You are now earning 1.3% daily.');
   };
 
-  const handleWithdrawal = (amount: number) => {
-    addTransaction({ type: 'withdrawal', amount, status: 'pending', description: `Withdrawal to ${user.kyc?.bankName} (${maskAccountNumber(user.kyc?.accountNumber || '')})` });
+  const handleWithdrawal = (_amount: number) => {
+    refreshUser();
     showNotif('Withdrawal request submitted. Processing within 24 hours.');
   };
-
-  const kycBadge = user.kyc?.status === 'approved' ? '✅ Verified' : user.kyc?.status === 'pending' ? '⏳ Pending' : '⚠️ Not Verified';
-  const kycColor = user.kyc?.status === 'approved' ? 'text-lime-400' : user.kyc?.status === 'pending' ? 'text-yellow-400' : 'text-red-400';
 
   return (
     <div className="min-h-screen bg-dark-800 pb-20 lg:pb-0">
@@ -271,7 +304,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
               <TrendingUp className="w-4 h-4 text-lime-400" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white">{user.fullName.split(' ')[0]}</p>
+              <p className="text-sm font-bold text-white">{(profile.full_name ?? 'User').split(' ')[0]}</p>
               <p className={`text-xs ${kycColor}`}>{kycBadge}</p>
             </div>
           </div>
@@ -288,7 +321,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* KYC Banner */}
-        {!user.kyc && (
+        {!kyc && (
           <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-4 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
@@ -309,17 +342,17 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
           <div className="relative z-10">
             <p className="text-sm text-gray-400 mb-1">Total Wallet Balance</p>
             <p className="text-4xl font-black font-serif text-white mb-1">
-              {balanceHidden ? '₦ ****' : formatNaira(user.walletBalance)}
+              {balanceHidden ? '₦ ****' : formatNaira(walletBalance)}
             </p>
             <p className="text-sm text-gray-400">
-              Total Earned: <span className="text-lime-400 font-semibold">{balanceHidden ? '****' : formatNaira(user.totalROI)}</span>
+              Total Earned: <span className="text-lime-400 font-semibold">{balanceHidden ? '****' : formatNaira(totalEarned)}</span>
             </p>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowInvest(true)}
                 className="flex items-center gap-2 bg-lime-400 hover:bg-lime-300 text-dark-800 font-bold px-5 py-2.5 rounded-xl text-sm transition-all">
                 <Plus className="w-4 h-4" /> Invest
               </button>
-              <button onClick={() => setShowWithdraw(true)} disabled={user.walletBalance < 500}
+              <button onClick={() => setShowWithdraw(true)} disabled={walletBalance < 500}
                 className="flex items-center gap-2 border border-lime-400/30 text-lime-400 hover:bg-lime-400/10 font-bold px-5 py-2.5 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 <Minus className="w-4 h-4" /> Withdraw
               </button>
@@ -336,7 +369,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
             { key: 'referral', label: 'Referral', icon: <Gift className="w-4 h-4" /> },
             { key: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
           ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
+            <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.key ? 'bg-lime-400 text-dark-800' : 'text-gray-400 hover:text-white'
               }`}>
@@ -349,14 +382,14 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Total ROI" value={balanceHidden ? '****' : formatNaira(user.totalROI)} accent />
-              <StatCard icon={<ArrowUpRight className="w-4 h-4" />} label="Total Deposited" value={balanceHidden ? '****' : formatNaira(user.totalDeposited)} />
-              <StatCard icon={<ArrowDownLeft className="w-4 h-4" />} label="Total Withdrawn" value={balanceHidden ? '****' : formatNaira(user.totalWithdrawn)} />
-              <StatCard icon={<Users className="w-4 h-4" />} label="Referral Earnings" value={balanceHidden ? '****' : formatNaira(user.referralEarnings)} sub={`${user.referralCount} referral${user.referralCount !== 1 ? 's' : ''}`} />
+              <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Total ROI" value={balanceHidden ? '****' : formatNaira(totalEarned)} accent />
+              <StatCard icon={<ArrowUpRight className="w-4 h-4" />} label="Total Deposited" value={balanceHidden ? '****' : formatNaira(totalDeposited)} />
+              <StatCard icon={<ArrowDownLeft className="w-4 h-4" />} label="Total Withdrawn" value={balanceHidden ? '****' : formatNaira(totalWithdrawn)} />
+              <StatCard icon={<Users className="w-4 h-4" />} label="Referral Earnings" value={balanceHidden ? '****' : formatNaira(referralEarnings)} sub={`${referralCount} referral${referralCount !== 1 ? 's' : ''}`} />
             </div>
 
             {/* Active Investments Live Counter */}
-            {user.investments.filter(i => i.status === 'active').length > 0 && (
+            {investments.filter(i => i.status === 'active').length > 0 && (
               <div className="bg-dark-600/40 border border-lime-400/10 rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <div className="w-2 h-2 bg-lime-400 rounded-full animate-pulse" />
@@ -364,20 +397,24 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
                   <span className="text-xs bg-lime-400/10 text-lime-400 px-2 py-0.5 rounded-full">Real-time</span>
                 </div>
                 <div className="space-y-4">
-                  {user.investments.filter(i => i.status === 'active').map(inv => (
+                  {investments.filter(i => i.status === 'active').map(inv => (
                     <div key={inv.id} className="flex items-center justify-between bg-dark-700/60 rounded-xl px-4 py-3">
                       <div>
-                        <p className="text-sm font-semibold text-white">{inv.planLabel}</p>
-                        <p className="text-xs text-gray-400">Started {new Date(inv.startDate).toLocaleDateString()}</p>
+                        <p className="text-sm font-semibold text-white">{inv.plan_id}</p>
+                        <p className="text-xs text-gray-400">Started {new Date(inv.start_date).toLocaleDateString()}</p>
                       </div>
-                      <LiveROICounter investment={inv} />
+                      <LiveROICounter
+                        id={inv.id ?? ''}
+                        dailyRate={inv.amount * (inv.daily_rate ?? 0.013)}
+                        totalEarned={inv.total_earned ?? 0}
+                      />
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {user.investments.length === 0 && (
+            {investments.length === 0 && (
               <div className="text-center py-16 bg-dark-600/20 border border-lime-400/5 rounded-2xl">
                 <TrendingUp className="w-12 h-12 text-lime-400/20 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-white mb-2">No Active Investments</h3>
@@ -390,11 +427,11 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
             )}
 
             {/* Recent Transactions */}
-            {user.transactions.length > 0 && (
+            {transactions.length > 0 && (
               <div className="bg-dark-600/40 border border-lime-400/10 rounded-2xl p-6">
                 <h3 className="font-bold text-white mb-4">Recent Activity</h3>
                 <div className="space-y-3">
-                  {user.transactions.slice(0, 5).map(tx => (
+                  {transactions.slice(0, 5).map(tx => (
                     <div key={tx.id} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
@@ -409,8 +446,8 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
                            <Gift className="w-4 h-4" />}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white">{tx.description}</p>
-                          <p className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                          <p className="text-sm font-medium text-white">{tx.description ?? tx.type}</p>
+                          <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -418,7 +455,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
                           {tx.type === 'withdrawal' ? '-' : '+'}{formatNaira(tx.amount)}
                         </p>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          tx.status === 'completed' ? 'bg-lime-400/10 text-lime-400' :
+                          tx.status === 'success' ? 'bg-lime-400/10 text-lime-400' :
                           tx.status === 'pending' ? 'bg-yellow-400/10 text-yellow-400' :
                           'bg-red-400/10 text-red-400'
                         }`}>{tx.status}</span>
@@ -437,41 +474,44 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5">
                 <p className="text-xs text-gray-400 mb-1">Total Deposits</p>
-                <p className="text-2xl font-bold text-white">{balanceHidden ? '****' : formatNaira(user.totalDeposited)}</p>
+                <p className="text-2xl font-bold text-white">{balanceHidden ? '****' : formatNaira(totalDeposited)}</p>
               </div>
               <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5">
                 <p className="text-xs text-gray-400 mb-1">Total Withdrawn</p>
-                <p className="text-2xl font-bold text-white">{balanceHidden ? '****' : formatNaira(user.totalWithdrawn)}</p>
+                <p className="text-2xl font-bold text-white">{balanceHidden ? '****' : formatNaira(totalWithdrawn)}</p>
               </div>
             </div>
 
-            {user.kyc?.status === 'approved' && (
-              <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5">
-                <p className="text-xs text-gray-400 mb-3">Bank Account</p>
-                <p className="font-bold text-white">{user.kyc.bankName}</p>
-                <p className="text-sm text-gray-300 mt-1">{user.kyc.accountName}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{maskAccountNumber(user.kyc.accountNumber)}</p>
-              </div>
-            )}
+            {kyc?.status === 'verified' && (() => {
+              const bankTx = transactions.find(t => t.description === 'Bank details registered during KYC' && t.bank_name);
+              return bankTx ? (
+                <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5">
+                  <p className="text-xs text-gray-400 mb-3">Bank Account</p>
+                  <p className="font-bold text-white">{bankTx.bank_name}</p>
+                  <p className="text-sm text-gray-300 mt-1">{bankTx.account_name}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{maskAccountNumber(bankTx.account_number ?? '')}</p>
+                </div>
+              ) : null;
+            })()}
 
             <div className="bg-dark-600/40 border border-lime-400/10 rounded-2xl p-5">
               <h3 className="font-bold text-white mb-4">All Transactions</h3>
-              {user.transactions.length === 0 ? (
+              {transactions.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-8">No transactions yet</p>
               ) : (
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {user.transactions.map(tx => (
+                  {transactions.map(tx => (
                     <div key={tx.id} className="flex items-center justify-between border-b border-lime-400/5 pb-3 last:border-0 last:pb-0">
                       <div>
-                        <p className="text-sm font-medium text-white">{tx.description}</p>
-                        <p className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleString()}</p>
+                        <p className="text-sm font-medium text-white">{tx.description ?? tx.type}</p>
+                        <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleString()}</p>
                         {tx.reference && <p className="text-xs text-gray-600 font-mono">{tx.reference}</p>}
                       </div>
                       <div className="text-right">
                         <p className={`text-sm font-bold ${tx.type === 'withdrawal' ? 'text-red-400' : 'text-lime-400'}`}>
                           {tx.type === 'withdrawal' ? '-' : '+'}{formatNaira(tx.amount)}
                         </p>
-                        <span className={`text-xs ${tx.status === 'completed' ? 'text-lime-400' : tx.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}`}>
+                        <span className={`text-xs ${tx.status === 'success' ? 'text-lime-400' : tx.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}`}>
                           {tx.status}
                         </span>
                       </div>
@@ -491,21 +531,21 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
               <Plus className="w-5 h-5" /> New Investment
             </button>
 
-            {user.investments.length === 0 ? (
+            {investments.length === 0 ? (
               <div className="text-center py-16 bg-dark-600/20 rounded-2xl border border-lime-400/5">
                 <BarChart3 className="w-12 h-12 text-lime-400/20 mx-auto mb-4" />
                 <p className="text-gray-400">No investments yet. Click above to start!</p>
               </div>
             ) : (
-              user.investments.map(inv => {
-                const days = (Date.now() - new Date(inv.startDate).getTime()) / 86400000;
+              investments.map(inv => {
+                const days = (Date.now() - new Date(inv.start_date).getTime()) / 86400000;
                 const progress = Math.min((days / 90) * 100, 100);
                 return (
                   <div key={inv.id} className="bg-dark-600/40 border border-lime-400/10 rounded-2xl p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <p className="font-bold text-white">{inv.planLabel}</p>
-                        <p className="text-xs text-gray-400">Started {new Date(inv.startDate).toLocaleDateString()}</p>
+                        <p className="font-bold text-white">{inv.plan_id}</p>
+                        <p className="text-xs text-gray-400">Started {new Date(inv.start_date).toLocaleDateString()}</p>
                       </div>
                       <span className={`text-xs px-3 py-1 rounded-full font-semibold ${inv.status === 'active' ? 'bg-lime-400/10 text-lime-400' : 'bg-gray-400/10 text-gray-400'}`}>
                         {inv.status}
@@ -514,7 +554,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
                     <div className="grid grid-cols-3 gap-3 mb-4">
                       <div className="bg-dark-700/60 rounded-lg p-3 text-center">
                         <p className="text-xs text-gray-500">Deposited</p>
-                        <p className="text-sm font-bold text-white">{formatNaira(inv.depositAmount)}</p>
+                        <p className="text-sm font-bold text-white">{formatNaira(inv.amount)}</p>
                       </div>
                       <div className="bg-dark-700/60 rounded-lg p-3 text-center">
                         <p className="text-xs text-gray-500">Daily Rate</p>
@@ -522,7 +562,9 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
                       </div>
                       <div className="bg-lime-400/5 border border-lime-400/10 rounded-lg p-3 text-center">
                         <p className="text-xs text-gray-500">Total Earned</p>
-                        {inv.status === 'active' ? <LiveROICounter investment={inv} /> : <p className="text-sm font-bold text-lime-400">{formatNaira(inv.totalEarned)}</p>}
+                        {inv.status === 'active'
+                          ? <LiveROICounter id={inv.id ?? ''} dailyRate={inv.amount * (inv.daily_rate ?? 0.013)} totalEarned={inv.total_earned ?? 0} />
+                          : <p className="text-sm font-bold text-lime-400">{formatNaira(inv.total_earned ?? 0)}</p>}
                       </div>
                     </div>
                     <div>
@@ -550,7 +592,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
               <h3 className="text-2xl font-bold font-serif text-white mb-2">Earn ₦500 Per Referral</h3>
               <p className="text-gray-400 text-sm mb-6">Share your referral link. Earn ₦500 credited to your wallet for every friend who registers.</p>
               <div className="bg-dark-700/60 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
-                <code className="text-lime-400 text-sm font-mono break-all">{user.referralCode}</code>
+                <code className="text-lime-400 text-sm font-mono break-all">{referralCode}</code>
                 <button onClick={copyReferralLink} className="ml-3 flex-shrink-0 p-2 bg-lime-400/10 hover:bg-lime-400/20 rounded-lg text-lime-400 transition-all">
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -564,11 +606,11 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5 text-center">
-                <p className="text-3xl font-black text-lime-400">{user.referralCount}</p>
+                <p className="text-3xl font-black text-lime-400">{referralCount}</p>
                 <p className="text-sm text-gray-400 mt-1">Total Referrals</p>
               </div>
               <div className="bg-dark-600/40 border border-lime-400/10 rounded-xl p-5 text-center">
-                <p className="text-3xl font-black text-lime-400">{formatNaira(user.referralEarnings)}</p>
+                <p className="text-3xl font-black text-lime-400">{formatNaira(referralEarnings)}</p>
                 <p className="text-sm text-gray-400 mt-1">Total Earned</p>
               </div>
             </div>
@@ -597,11 +639,10 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
               <div className="p-5 border-b border-lime-400/5">
                 <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-3">Account Info</p>
                 {[
-                  { label: 'Full Name', value: user.fullName },
-                  { label: 'Email', value: user.email },
-                  { label: 'Phone', value: user.phone },
-                  { label: 'Member Since', value: new Date(user.createdAt).toLocaleDateString() },
-                  { label: 'Last Login', value: new Date(user.lastLogin).toLocaleString() },
+                  { label: 'Full Name',    value: profile.full_name ?? '—' },
+                  { label: 'Email',        value: profile.email },
+                  { label: 'Phone',        value: profile.phone ?? '—' },
+                  { label: 'Member Since', value: new Date(profile.created_at).toLocaleDateString() },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between py-2.5 border-b border-lime-400/5 last:border-0">
                     <span className="text-sm text-gray-400">{label}</span>
@@ -623,7 +664,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
               <ChevronRight className="w-4 h-4 text-gray-500" />
             </button>
 
-            <a href={`${WA_BASE}?text=Hello%20Arbalist%20Capital%2C%20I%20need%20account%20support.%20My%20email%20is%20${user.email}`}
+            <a href={`${WA_BASE}?text=Hello%20Arbalist%20Capital%2C%20I%20need%20account%20support.%20My%20email%20is%20${profile.email}`}
               target="_blank" rel="noopener noreferrer"
               className="w-full flex items-center justify-between bg-dark-600/40 border border-lime-400/10 rounded-xl p-5 hover:border-lime-400/20 transition-all">
               <div className="flex items-center gap-3">
@@ -652,7 +693,7 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
             { key: 'referral', icon: <Gift className="w-5 h-5" />, label: 'Refer' },
             { key: 'settings', icon: <Settings className="w-5 h-5" />, label: 'Account' },
           ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
+            <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-xs font-medium transition-all ${activeTab === tab.key ? 'text-lime-400' : 'text-gray-500'}`}>
               {tab.icon}
               {tab.label}
