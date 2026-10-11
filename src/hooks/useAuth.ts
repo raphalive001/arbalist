@@ -18,10 +18,14 @@ export function useAuth() {
         .select('*')
         .eq('id', userId)
         .single();
-      if (error) throw error;
-      setProfile(data);
+      // PGRST116 = no rows found (profile not yet created); not a fatal error
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      }
+      setProfile(data ?? null);
     } catch (err) {
       console.error('Error fetching profile:', err);
+      setProfile(null);
     } finally {
       setLoading(false);
     }

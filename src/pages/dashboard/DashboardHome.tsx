@@ -10,13 +10,19 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 type Investment = Database["public"]["Tables"]["investments"]["Row"];
 
 export default function DashboardHome() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile) return;
+    // Wait until auth has resolved before deciding what to do
+    if (authLoading) return;
+    // Auth resolved but no profile row yet — stop the spinner
+    if (!profile) {
+      setLoading(false);
+      return;
+    }
     Promise.all([
       supabase.from("investments").select("*").eq("user_id", profile.id).eq("status", "active"),
       supabase.from("transactions").select("*").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(5),
@@ -24,8 +30,8 @@ export default function DashboardHome() {
       if (invRes.data) setInvestments(invRes.data);
       if (txRes.data) setTransactions(txRes.data);
       setLoading(false);
-    });
-  }, [profile]);
+    }).catch(() => setLoading(false));
+  }, [profile, authLoading]);
 
   const txTypeColors: Record<string, string> = {
     deposit: "text-lime-400",
