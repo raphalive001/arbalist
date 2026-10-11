@@ -34,21 +34,18 @@ export function useAdmin() {
     if (authLoading) return;
     if (!profile) { setChecking(false); return; }
 
-    // Check is_admin column — added via migration
+    // Read is_admin directly from the profiles row.
+    // app_metadata is only writable via the service-role Admin API,
+    // so checking the JWT for it will never work from the client.
     supabase
       .from('profiles')
-      .select('id')
+      .select('is_admin')
       .eq('id', profile.id)
-      // We use a raw RPC / metadata approach since `is_admin` may not be in the
-      // base Database type yet. Fallback: check app_metadata from auth.
-      .then(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        const adminFlag =
-          user?.app_metadata?.is_admin === true ||
-          user?.user_metadata?.is_admin === true;
-        setIsAdmin(adminFlag);
-        setChecking(false);
-      });
+      .single()
+      .then(
+        ({ data }) => { setIsAdmin(data?.is_admin === true); setChecking(false); },
+        ()         => { setIsAdmin(false);                   setChecking(false); },
+      );
   }, [profile, authLoading]);
 
   // ── Stats ──────────────────────────────────────────────────────────

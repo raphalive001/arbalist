@@ -22,6 +22,7 @@ export interface Database {
           wallet_balance: number;
           total_invested: number;
           total_earned: number;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
