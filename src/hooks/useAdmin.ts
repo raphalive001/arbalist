@@ -34,13 +34,11 @@ export function useAdmin() {
     if (authLoading) return;
     if (!profile) { setChecking(false); return; }
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      const flag =
-        user?.app_metadata?.is_admin === true ||
-        user?.user_metadata?.is_admin === true;
-      setIsAdmin(flag);
-      setChecking(false);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+  const flag = session?.user?.app_metadata?.is_admin === true;
+  setIsAdmin(flag);
+  setChecking(false);
+});
   }, [profile, authLoading]);
 
   // ── Stats ──────────────────────────────────────────────────────────
