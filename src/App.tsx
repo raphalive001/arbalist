@@ -7,6 +7,7 @@ import AllPlansPage       from '@/pages/AllPlansPage';
 import LoginPage          from '@/pages/LoginPage';
 import RegisterPage       from '@/pages/RegisterPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage  from '@/pages/ResetPasswordPage';   // ← NEW
 
 // User dashboard
 import DashboardLayout   from '@/pages/dashboard/DashboardLayout';
@@ -35,8 +36,8 @@ function Spinner() {
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading)  return <Spinner />;
-  if (!user)    return <Navigate to="/login" replace />;
+  if (loading) return <Spinner />;
+  if (!user)   return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
@@ -50,16 +51,20 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      {/* ── Public ─────────────────────────────────── */}
-      <Route path="/"               element={<HomePage />} />
-      <Route path="/plans"          element={<AllPlansPage />} />
+      {/* ── Public ───────────────────────────────── */}
+      <Route path="/"      element={<HomePage />} />
+      <Route path="/plans" element={<AllPlansPage />} />
 
-      {/* ── Auth ───────────────────────────────────── */}
-      <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
-      <Route path="/register"        element={<RequireGuest><RegisterPage /></RequireGuest>} />
-      <Route path="/forgot-password" element={<RequireGuest><ForgotPasswordPage /></RequireGuest>} />
+      {/* ── Auth ─────────────────────────────────── */}
+      <Route path="/login"            element={<RequireGuest><LoginPage /></RequireGuest>} />
+      <Route path="/register"         element={<RequireGuest><RegisterPage /></RequireGuest>} />
+      <Route path="/forgot-password"  element={<RequireGuest><ForgotPasswordPage /></RequireGuest>} />
 
-      {/* ── User Dashboard ─────────────────────────── */}
+      {/* Reset password — must be PUBLIC (no RequireGuest) because Supabase
+          redirects here with a recovery token before the user is signed in */}
+      <Route path="/reset-password"   element={<ResetPasswordPage />} />
+
+      {/* ── User Dashboard ───────────────────────── */}
       <Route path="/dashboard" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route index           element={<DashboardHome />} />
         <Route path="kyc"      element={<KYCPage />} />
@@ -69,16 +74,16 @@ export default function App() {
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 
-      {/* ── Admin Dashboard ────────────────────────── */}
+      {/* ── Admin Dashboard ──────────────────────── */}
       <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
-        <Route index                element={<AdminOverview />}     />
-        <Route path="users"         element={<AdminUsers />}        />
-        <Route path="kyc"           element={<AdminKYC />}          />
-        <Route path="investments"   element={<AdminInvestments />}  />
-        <Route path="transactions"  element={<AdminTransactions />} />
+        <Route index               element={<AdminOverview />}     />
+        <Route path="users"        element={<AdminUsers />}        />
+        <Route path="kyc"          element={<AdminKYC />}          />
+        <Route path="investments"  element={<AdminInvestments />}  />
+        <Route path="transactions" element={<AdminTransactions />} />
       </Route>
 
-      {/* ── Fallback ───────────────────────────────── */}
+      {/* ── Fallback ─────────────────────────────── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
