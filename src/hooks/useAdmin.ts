@@ -34,11 +34,9 @@ export function useAdmin() {
     if (authLoading) return;
     if (!profile) { setChecking(false); return; }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-  const flag = session?.user?.app_metadata?.is_admin === true;
-  setIsAdmin(flag);
-  setChecking(false);
-});
+    const flag = (profile as any)?.is_admin === true;
+    setIsAdmin(flag);
+    setChecking(false);
   }, [profile, authLoading]);
 
   // ── Stats ──────────────────────────────────────────────────────────
