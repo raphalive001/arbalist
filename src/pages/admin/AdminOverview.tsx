@@ -69,7 +69,7 @@ export default function AdminOverview() {
 
   async function handleRunDailyROI() {
     const confirmed = window.confirm(
-      'Run Daily ROI for ALL active investments now?\n\nThis credits 1.3% to every active investor\'s wallet. Only do this ONCE per day.'
+      'Credit today\'s 1.3% ROI to every active investment?\n\nSafe to click more than once: each investment can only be credited once per day.'
     );
     if (!confirmed) return;
 
@@ -80,7 +80,11 @@ export default function AdminOverview() {
     if (error) {
       toast.error('ROI run failed: ' + error.message);
     } else {
-      toast.success(`✅ Daily ROI credited to ${count} investment${count !== 1 ? 's' : ''}!`);
+      if (count === 0) {
+        toast('Nothing to credit: every active investment was already paid today, or there are none.');
+      } else {
+        toast.success(`✅ Daily ROI credited to ${count} investment${count !== 1 ? 's' : ''}!`);
+      }
       load();
     }
   }
