@@ -200,8 +200,8 @@ export function useAdmin() {
   }, []);
 
   // ── Credit wallet (manual bank transfer confirmed by admin) ────────
-  // This is the MAIN method for adding funds without Paystack.
-  // Bumps wallet_balance. Type = 'deposit' so it shows in user's Transactions.
+  // Ledger entry is written FIRST. If it fails we stop, so a balance can never
+  // change without a matching transaction record.
   const creditWallet = useCallback(async (
     userId: string,
     amount: number,
@@ -217,24 +217,37 @@ export function useAdmin() {
 
     const isEarning = type === 'roi' || type === 'referral_bonus';
 
-    const [{ error: txErr }, { error: profileErr }] = await Promise.all([
-      // Log transaction visible to the user
-      supabase.from('transactions').insert({
+    // 1) Ledger entry
+    const { data: tx, error: txErr } = await supabase
+      .from('transactions')
+      .insert({
         user_id:     userId,
         type,
         amount,
         status:      'success',
-        reference:   `ADM-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+        reference:   `ADM-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
         description: note || (type === 'deposit' ? 'Manual deposit by admin' : 'ROI credit by admin'),
-      }),
-      // Update profile
-      supabase.from('profiles').update({
+      })
+      .select('id')
+      .single();
+    if (txErr || !tx) return { error: txErr ?? new Error('Could not record the transaction') };
+
+    // 2) Balance
+    const { error: profileErr } = await supabase
+      .from('profiles')
+      .update({
         wallet_balance: prof.wallet_balance + amount,
         ...(isEarning ? { total_earned: (prof.total_earned ?? 0) + amount } : {}),
-      }).eq('id', userId),
-    ]);
+      })
+      .eq('id', userId);
 
-    return { error: txErr ?? profileErr };
+    if (profileErr) {
+      // Balance did not change, so void the ledger line we just wrote
+      await supabase.from('transactions').update({ status: 'failed' }).eq('id', tx.id);
+      return { error: profileErr };
+    }
+
+    return { error: null };
   }, []);
 
   // ── Credit ROI (alias kept for backwards compatibility) ────────────
@@ -243,44 +256,12 @@ export function useAdmin() {
   }, [creditWallet]);
 
   // ── Run daily ROI for ALL active investments ───────────────────────
+  // Runs inside the database (credit_daily_roi, see supabase/004_*.sql) so it is
+  // atomic, and each investment can only be credited once per calendar day.
   const runDailyROI = useCallback(async () => {
-    const { data: investments, error } = await supabase
-      .from('investments')
-      .select('id, user_id, amount, daily_rate, plan_id, total_earned')
-      .eq('status', 'active');
-
-    if (error || !investments?.length) return { error, count: 0 };
-
-    let credited = 0;
-    for (const inv of investments) {
-      const roi = inv.amount * inv.daily_rate;
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('wallet_balance, total_earned')
-        .eq('id', inv.user_id)
-        .single();
-      if (!prof) continue;
-
-      await Promise.all([
-        supabase.from('transactions').insert({
-          user_id:     inv.user_id,
-          type:        'roi',
-          amount:      roi,
-          status:      'success',
-          reference:   `ROI-${inv.id.slice(0, 8)}-${Date.now()}`,
-          description: `Daily ROI — ${inv.plan_id}`,
-        }),
-        supabase.from('profiles').update({
-          wallet_balance: prof.wallet_balance + roi,
-          total_earned:   (prof.total_earned ?? 0) + roi,
-        }).eq('id', inv.user_id),
-        supabase.from('investments').update({
-          total_earned: inv.total_earned + roi,
-        }).eq('id', inv.id),
-      ]);
-      credited++;
-    }
-    return { error: null, count: credited };
+    const { data, error } = await supabase.rpc('credit_daily_roi');
+    if (error) return { error, count: 0 };
+    return { error: null, count: typeof data === 'number' ? data : 0 };
   }, []);
 
   // ── Update user profile fields ─────────────────────────────────────
