@@ -4,7 +4,20 @@ import { useAuth } from '@/hooks/useAuth';
 import type { Database } from '@/types/database';
 
 export type AdminProfile     = Database['public']['Tables']['profiles']['Row'];
-export type AdminKYC         = Database['public']['Tables']['kyc_documents']['Row'] & {
+export type AdminKYC = {
+  id: string;
+  user_id: string;
+  full_name: string;
+  nin: string;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  status: 'pending' | 'submitted' | 'verified' | 'rejected';
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  submitted_at: string;
+  updated_at: string;
   profiles?: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'email' | 'phone'> | null;
 };
 export type AdminInvestment  = Database['public']['Tables']['investments']['Row'] & {
@@ -100,36 +113,36 @@ export function useAdmin() {
 
   // ── KYC ───────────────────────────────────────────────────────────
   const fetchKYCQueue = useCallback(async () => {
-    return supabase
-      .from('kyc_documents')
-      .select('*, profiles(full_name, email, phone)')
-      .in('status', ['pending', 'verified', 'rejected'])
-      .order('created_at', { ascending: false });
-  }, []);
+  return supabase
+    .from('kyc')
+    .select('*, profiles(full_name, email, phone)')
+    .in('status', ['pending', 'submitted', 'verified', 'rejected'])
+    .order('submitted_at', { ascending: false });
+}, []);
 
-  const approveKYC = useCallback(async (
-    kycId: string,
-    userId: string,
-    action: 'verified' | 'rejected',
-    reason?: string,
-  ) => {
-    const { error: kycErr } = await supabase
-      .from('kyc_documents')
-      .update({
-        status:           action,
-        rejection_reason: action === 'rejected' ? (reason ?? 'Does not meet requirements') : null,
-        reviewed_at:      new Date().toISOString(),
-      })
-      .eq('id', kycId);
-    if (kycErr) return { error: kycErr };
+const approveKYC = useCallback(async (
+  kycId: string,
+  userId: string,
+  action: 'verified' | 'rejected',
+  reason?: string,
+) => {
+  const { error: kycErr } = await supabase
+    .from('kyc')
+    .update({
+      status:           action,
+      rejection_reason: action === 'rejected' ? (reason ?? 'Does not meet requirements') : null,
+      reviewed_at:      new Date().toISOString(),
+    })
+    .eq('id', kycId);
+  if (kycErr) return { error: kycErr };
 
-    const { error: profileErr } = await supabase
-      .from('profiles')
-      .update({ kyc_status: action === 'verified' ? 'verified' : 'rejected' })
-      .eq('id', userId);
+  const { error: profileErr } = await supabase
+    .from('profiles')
+    .update({ kyc_status: action === 'verified' ? 'verified' : 'rejected' })
+    .eq('id', userId);
 
-    return { error: profileErr };
-  }, []);
+  return { error: profileErr };
+}, []);
 
   // ── Investments ────────────────────────────────────────────────────
   const fetchInvestments = useCallback(async (statusFilter?: string) => {
