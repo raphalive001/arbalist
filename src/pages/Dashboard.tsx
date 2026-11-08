@@ -589,8 +589,8 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
           <div className="space-y-5">
             <div className="bg-gradient-to-br from-lime-400/10 via-lime-400/5 to-dark-600/40 border border-lime-400/20 rounded-2xl p-6 text-center">
               <Gift className="w-12 h-12 text-lime-400 mx-auto mb-3" />
-              <h3 className="text-2xl font-bold font-serif text-white mb-2">Earn ₦500 Per Referral</h3>
-              <p className="text-gray-400 text-sm mb-6">Share your referral link. Earn ₦500 credited to your wallet for every friend who registers.</p>
+              <h3 className="text-2xl font-bold font-serif text-white mb-2">Earn 3% Per Referral</h3>
+              <p className="text-gray-400 text-sm mb-6">Share your referral link. Earn 3% of the first deposit of every friend who registers with it, credited to your wallet.</p>
               <div className="bg-dark-700/60 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
                 <code className="text-lime-400 text-sm font-mono break-all">{referralCode}</code>
                 <button onClick={copyReferralLink} className="ml-3 flex-shrink-0 p-2 bg-lime-400/10 hover:bg-lime-400/20 rounded-lg text-lime-400 transition-all">
@@ -619,8 +619,8 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
               <h4 className="font-bold text-white">How Referrals Work</h4>
               {[
                 { step: '1', text: 'Share your unique referral link or code' },
-                { step: '2', text: 'Friend registers using your link' },
-                { step: '3', text: '₦500 is instantly credited to your wallet' },
+                { step: '2', text: 'Friend registers with your link and makes their first deposit' },
+                { step: '3', text: '3% of their first deposit is credited to your wallet' },
                 { step: '4', text: 'No limit on referrals — earn as much as you want!' },
               ].map(({ step, text }) => (
                 <div key={step} className="flex items-center gap-3">
