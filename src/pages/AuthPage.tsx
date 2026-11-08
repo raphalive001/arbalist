@@ -257,7 +257,7 @@ export default function AuthPage({ onSuccess, onBack, initialMode = 'login', pre
                     hint="Nigerian number (08XX or +234...)" autoComplete="tel" />
                   <InputField label="Referral Code (Optional)" name="referralCode" placeholder="E.g. JOHN4AB2"
                     value={form.referralCode} onChange={v => setForm(f => ({ ...f, referralCode: v }))}
-                    icon={<Gift className="w-4 h-4" />} hint="Earn ₦500 when you use a valid referral code" />
+                    icon={<Gift className="w-4 h-4" />} hint="The person who invited you earns 3% of your first deposit" />
 
                   {/* ALWAYS VISIBLE — no content pushing it away */}
                   <button type="submit"
