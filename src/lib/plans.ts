@@ -29,4 +29,10 @@ export const PLANS: Plan[] = [
 export const formatNGN = (amount: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2 }).format(amount);
 
-export const REFERRAL_BONUS_RATE = 0.03; // 3% of first deposit
+// Referral bonus: 3% of the referred user's FIRST deposit, paid to the referrer.
+// The database does the paying (supabase/005_referral_3_percent.sql), so if you
+// ever change this rate, change referral_bonus_rate() in that SQL file as well.
+export const REFERRAL_BONUS_RATE = 0.03;
+export const REFERRAL_BONUS_PERCENT = Math.round(REFERRAL_BONUS_RATE * 10000) / 100; // 3
+export const referralBonusFor = (firstDeposit: number) =>
+  Math.round(firstDeposit * REFERRAL_BONUS_RATE * 100) / 100;
