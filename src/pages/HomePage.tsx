@@ -11,8 +11,8 @@ const FAQS = [
   { q: "How does Arbalist Capital work?", a: "Arbalist Capital is an investment platform where you deposit funds and earn 1.3% daily ROI. Your earnings are credited to your wallet every day and you can withdraw at any time after KYC verification." },
   { q: "What is the minimum investment?", a: "The minimum investment starts from ₦50,500. You can invest in multiple plans simultaneously to maximize your earnings." },
   { q: "How do I withdraw my earnings?", a: "After completing KYC verification, you can withdraw directly to your Nigerian bank account. Withdrawals are processed within 24 business hours. Minimum withdrawal is ₦5,000." },
-  { q: "Is my money safe?", a: "We use bank-grade security, SSL encryption, and Supabase's secure infrastructure. All payments are processed through Paystack, a CBN-licensed payment gateway." },
-  { q: "How does the referral program work?", a: "Share your unique referral link. When someone signs up and makes their first deposit, you earn 5% of their deposit amount directly to your wallet." },
+  { q: "Is my money safe?", a: "We use bank-grade security, SSL encryption, and Supabase's secure infrastructure. All payments are processed through a CBN-licensed payment gateway." },
+  { q: "How does the referral program work?", a: "Share your unique referral link. When someone signs up and makes their first deposit, you earn 3% of their deposit amount directly to your wallet." },
   { q: "What is KYC verification?", a: "KYC (Know Your Customer) is a one-time identity verification required by financial regulations. You submit a valid government ID and selfie. Verification takes 24–48 hours." },
 ];
 
@@ -95,7 +95,7 @@ export default function HomePage() {
             {[
               { value: "1.3%", label: "Daily ROI" },
               { value: "₦5M+", label: "Max Plan" },
-              { value: "5%", label: "Referral Bonus" },
+              { value: "3%", label: "Referral Bonus" },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-3xl font-bold font-serif text-lime-400">{s.value}</p>
@@ -192,7 +192,7 @@ export default function HomePage() {
               { icon: <Globe className="w-6 h-6" />, title: "Paystack Payment", desc: "Deposit and withdraw securely via Paystack — a CBN-licensed, PCI-DSS compliant gateway." },
               { icon: <BarChart3 className="w-6 h-6" />, title: "Daily ROI Dashboard", desc: "Track your earnings, portfolio performance, and transaction history in real-time." },
               { icon: <Shield className="w-6 h-6" />, title: "KYC Protected", desc: "Verified identities protect all users and ensure compliance with financial regulations." },
-              { icon: <Users className="w-6 h-6" />, title: "Referral Earnings", desc: "Earn 5% on every referral's first deposit. No limit on how many people you refer." },
+              { icon: <Users className="w-6 h-6" />, title: "Referral Earnings", desc: "Earn 3% on every referral's first deposit. No limit on how many people you refer." },
               { icon: <Zap className="w-6 h-6" />, title: "Instant Crediting", desc: "Daily ROI is automatically credited at midnight. Deposits reflect instantly after payment." },
             ].map((f) => (
               <div key={f.title} className="bg-dark-600/40 border border-lime-400/10 rounded-2xl p-6 hover:border-lime-400/20 transition-all">
