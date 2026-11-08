@@ -242,6 +242,7 @@ export interface Database {
           bonus_amount: number;
           status: "pending" | "credited";
           created_at: string;
+          paid_at: string | null;
         };
         Insert: {
           id?: string;
@@ -250,6 +251,7 @@ export interface Database {
           bonus_amount?: number;
           status?: "pending" | "credited";
           created_at?: string;
+          paid_at?: string | null;
         };
         Update: {
           id?: string;
@@ -258,6 +260,7 @@ export interface Database {
           bonus_amount?: number;
           status?: "pending" | "credited";
           created_at?: string;
+          paid_at?: string | null;
         };
         Relationships: [];
       };
@@ -269,6 +272,23 @@ export interface Database {
       credit_daily_roi: {
         Args: Record<PropertyKey, never>;
         Returns: number;
+      };
+      get_my_referrals: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          referred_id: string;
+          referred_name: string;
+          referred_email: string;
+          bonus_amount: number;
+          status: string;
+          created_at: string;
+          paid_at: string | null;
+        }[];
+      };
+      referral_code_exists: {
+        Args: { p_code: string };
+        Returns: boolean;
       };
     };
     Enums: {
