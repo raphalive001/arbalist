@@ -4,20 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { Database } from '@/types/database';
 
 export type AdminProfile     = Database['public']['Tables']['profiles']['Row'];
-export type AdminKYC = {
-  id: string;
-  user_id: string;
-  full_name: string;
-  nin: string;
-  bank_name: string;
-  account_number: string;
-  account_name: string;
-  status: 'pending' | 'submitted' | 'verified' | 'rejected';
-  rejection_reason: string | null;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  submitted_at: string;
-  updated_at: string;
+export type AdminKYC = Database['public']['Tables']['kyc_documents']['Row'] & {
   profiles?: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'email' | 'phone'> | null;
 };
 export type AdminInvestment  = Database['public']['Tables']['investments']['Row'] & {
@@ -113,36 +100,54 @@ export function useAdmin() {
 
   // ── KYC ───────────────────────────────────────────────────────────
   const fetchKYCQueue = useCallback(async () => {
-  return supabase
-    .from('kyc')
-    .select('*, profiles(full_name, email, phone)')
-    .in('status', ['pending', 'submitted', 'verified', 'rejected'])
-    .order('submitted_at', { ascending: false });
-}, []);
+    // kyc_documents has TWO foreign keys to profiles (user_id, reviewed_by), so the
+    // embed must name which one to follow or PostgREST rejects the whole query.
+    return supabase
+      .from('kyc_documents')
+      .select('*, profiles!kyc_documents_user_id_fkey(full_name, email, phone)')
+      .order('created_at', { ascending: false });
+  }, []);
 
-const approveKYC = useCallback(async (
-  kycId: string,
-  userId: string,
-  action: 'verified' | 'rejected',
-  reason?: string,
-) => {
-  const { error: kycErr } = await supabase
-    .from('kyc')
-    .update({
-      status:           action,
-      rejection_reason: action === 'rejected' ? (reason ?? 'Does not meet requirements') : null,
-      reviewed_at:      new Date().toISOString(),
-    })
-    .eq('id', kycId);
-  if (kycErr) return { error: kycErr };
+  const approveKYC = useCallback(async (
+    kycId: string,
+    userId: string,
+    action: 'verified' | 'rejected',
+    reason?: string,
+  ) => {
+    const { data: { user: reviewer } } = await supabase.auth.getUser();
 
-  const { error: profileErr } = await supabase
-    .from('profiles')
-    .update({ kyc_status: action === 'verified' ? 'verified' : 'rejected' })
-    .eq('id', userId);
+    const { error: kycErr } = await supabase
+      .from('kyc_documents')
+      .update({
+        status:           action,
+        rejection_reason: action === 'rejected' ? (reason ?? 'Does not meet requirements') : null,
+        reviewed_by:      reviewer?.id ?? null,
+        reviewed_at:      new Date().toISOString(),
+      })
+      .eq('id', kycId);
+    if (kycErr) return { error: kycErr };
 
-  return { error: profileErr };
-}, []);
+    const { error: profileErr } = await supabase
+      .from('profiles')
+      .update({ kyc_status: action })
+      .eq('id', userId);
+
+    return { error: profileErr };
+  }, []);
+
+  // The kyc-documents bucket is private. Turn a stored path (or an old full public URL)
+  // into a short-lived signed URL the admin's browser can actually load.
+  const getKYCFileUrl = useCallback(async (value: string | null): Promise<string | null> => {
+    if (!value) return null;
+    const marker = '/kyc-documents/';
+    const idx    = value.indexOf(marker);
+    const path   = value.startsWith('http') && idx !== -1
+      ? decodeURIComponent(value.slice(idx + marker.length).split('?')[0])
+      : value;
+    const { data, error } = await supabase.storage.from('kyc-documents').createSignedUrl(path, 3600);
+    if (error || !data) return value.startsWith('http') ? value : null;
+    return data.signedUrl;
+  }, []);
 
   // ── Investments ────────────────────────────────────────────────────
   const fetchInvestments = useCallback(async (statusFilter?: string) => {
@@ -292,6 +297,7 @@ const approveKYC = useCallback(async (
     fetchUsers,
     fetchKYCQueue,
     approveKYC,
+    getKYCFileUrl,
     fetchInvestments,
     fetchTransactions,
     processWithdrawal,
