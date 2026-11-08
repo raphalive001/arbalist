@@ -21,6 +21,14 @@ const BANKS = [
 
 const WHATSAPP_NUMBER = '2349054416277';
 
+// Company receiving account shown on the Fund Wallet tab.
+// Change it HERE ONLY: the card on screen and the "Copy Details" text both read from this.
+const BANK_DETAILS = {
+  bankName:      'Moniepoint',
+  accountName:   'ARBALIST CPITL Enterprise',
+  accountNumber: '3003581197',
+} as const;
+
 export default function WalletPage() {
   const { profile, refetchProfile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -49,11 +57,15 @@ export default function WalletPage() {
   useEffect(() => { loadTransactions(); }, [profile?.id]);
 
   // ── Copy bank details ────────────────────────────────────────────
-  function copyBankDetails() {
+  async function copyBankDetails() {
     const text =
-      `Bank: Opay / First Bank\nAccount Name: Arbalist Capital\nAccount Number: 8104587652\n\nSend payment proof to WhatsApp: +${WHATSAPP_NUMBER}`;
-    navigator.clipboard.writeText(text);
-    toast.success('Bank details copied!');
+      `Bank: ${BANK_DETAILS.bankName}\nAccount Name: ${BANK_DETAILS.accountName}\nAccount Number: ${BANK_DETAILS.accountNumber}\n\nSend payment proof to WhatsApp: +${WHATSAPP_NUMBER}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Bank details copied!');
+    } catch {
+      toast.error('Could not copy automatically. Please copy the details by hand.');
+    }
   }
 
   function openWhatsApp(msg: string) {
@@ -219,9 +231,9 @@ export default function WalletPage() {
             <div className="bg-dark-700/60 border border-lime-400/10 rounded-xl p-5 space-y-3">
               <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Bank Transfer Details</p>
               {[
-                { label: 'Bank Name',      value: 'Opay / First Bank'    },
-                { label: 'Account Name',   value: 'Arbalist Capital'     },
-                { label: 'Account Number', value: '8104587652'           },
+                { label: 'Bank Name',      value: BANK_DETAILS.bankName      },
+                { label: 'Account Name',   value: BANK_DETAILS.accountName   },
+                { label: 'Account Number', value: BANK_DETAILS.accountNumber },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">{label}</span>
