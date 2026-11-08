@@ -20,8 +20,8 @@ async function uploadFile(userId: string, file: File, folder: string): Promise<s
   const path = `${userId}/${folder}/${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('kyc-documents').upload(path, file, { upsert: true });
   if (error) throw error;
-  const { data } = supabase.storage.from('kyc-documents').getPublicUrl(path);
-  return data.publicUrl;
+  // Bucket is private: store the object path; the admin panel signs it when viewing.
+  return path;
 }
 
 export default function KYCPage() {
@@ -69,7 +69,8 @@ export default function KYCPage() {
       if (error) throw error;
 
       const profileUpdate: ProfileUpdate = { kyc_status: 'submitted' };
-      await supabase.from('profiles').update(profileUpdate).eq('id', profile.id);
+      const { error: statusErr } = await supabase.from('profiles').update(profileUpdate).eq('id', profile.id);
+      if (statusErr) throw new Error('Documents saved, but your status could not be updated: ' + statusErr.message);
 
       refetchProfile?.();
       toast.success('KYC submitted successfully!');
