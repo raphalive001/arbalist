@@ -29,4 +29,4 @@ export const PLANS: Plan[] = [
 export const formatNGN = (amount: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2 }).format(amount);
 
-export const REFERRAL_BONUS_RATE = 0.05; // 5% of first deposit
+export const REFERRAL_BONUS_RATE = 0.03; // 3% of first deposit
