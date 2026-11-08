@@ -22,15 +22,26 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 function KYCReviewModal({
-  doc, onClose, onAction,
+  doc, onClose, onAction, getFileUrl,
 }: {
   doc: AdminKYC;
   onClose: () => void;
   onAction: (id: string, userId: string, action: 'verified' | 'rejected', reason?: string) => Promise<void>;
+  getFileUrl: (value: string | null) => Promise<string | null>;
 }) {
   const [reason,     setReason]     = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [preview,    setPreview]    = useState<string | null>(null);
+  const [urls, setUrls] = useState<{ front: string | null; back: string | null; selfie: string | null; ready: boolean }>(
+    { front: null, back: null, selfie: null, ready: false },
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getFileUrl(doc.front_url), getFileUrl(doc.back_url), getFileUrl(doc.selfie_url)])
+      .then(([front, back, selfie]) => { if (!cancelled) setUrls({ front, back, selfie, ready: true }); });
+    return () => { cancelled = true; };
+  }, [doc.id]);
 
   async function handle(action: 'verified' | 'rejected') {
     if (action === 'rejected' && !reason.trim()) {
@@ -102,10 +113,16 @@ function KYCReviewModal({
 
             {/* Document images */}
             <div className="grid grid-cols-3 gap-3">
-              <DocImage url={doc.front_url}  label="Front" />
-              <DocImage url={doc.back_url}   label="Back"  />
-              <DocImage url={doc.selfie_url} label="Selfie" />
+              <DocImage url={urls.front}  label="Front" />
+              <DocImage url={urls.back}   label="Back"  />
+              <DocImage url={urls.selfie} label="Selfie" />
             </div>
+            {!urls.ready && <p className="text-xs text-gray-500">Loading document images…</p>}
+            {urls.ready && (!urls.front || !urls.selfie) && (
+              <p className="text-xs text-yellow-400">
+                Some images could not be loaded. Run supabase/005_kyc_fix.sql (storage policies), then reopen this review.
+              </p>
+            )}
 
             {/* Current status */}
             {doc.status !== 'pending' && (
@@ -170,7 +187,7 @@ function KYCReviewModal({
 }
 
 export default function AdminKYC() {
-  const { fetchKYCQueue, approveKYC } = useAdmin();
+  const { fetchKYCQueue, approveKYC, getKYCFileUrl } = useAdmin();
   const [docs,     setDocs]     = useState<AdminKYC[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<FilterStatus>('pending');
@@ -178,8 +195,9 @@ export default function AdminKYC() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await fetchKYCQueue();
-    setDocs((data as AdminKYC[]) ?? []);
+    const { data, error } = await fetchKYCQueue();
+    if (error) toast.error('Could not load KYC submissions: ' + error.message);
+    setDocs((data as unknown as AdminKYC[]) ?? []);
     setLoading(false);
   }, [fetchKYCQueue]);
 
@@ -308,7 +326,7 @@ export default function AdminKYC() {
       )}
 
       {selected && (
-        <KYCReviewModal doc={selected} onClose={() => setSelected(null)} onAction={handleAction} />
+        <KYCReviewModal doc={selected} onClose={() => setSelected(null)} onAction={handleAction} getFileUrl={getKYCFileUrl} />
       )}
     </div>
   );
