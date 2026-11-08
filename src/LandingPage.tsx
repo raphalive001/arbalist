@@ -184,7 +184,7 @@ export default function LandingPage({ onLogin, onRegister }: Props) {
               { icon: <TrendingUp className="w-6 h-6" />, title: 'Consistent Returns', desc: '1.3% daily returns powered by our proven sports analytics system. Real-time ROI tracking in your dashboard.' },
               { icon: <Shield className="w-6 h-6" />, title: 'Bank-Level Security', desc: 'KYC verification, 256-bit SSL encryption, and multi-factor authentication protect your account and funds.' },
               { icon: <Activity className="w-6 h-6" />, title: 'Live Portfolio Tracker', desc: 'Watch your money grow in real-time. Our live counter shows earnings accumulating second by second.' },
-              { icon: <Users className="w-6 h-6" />, title: 'Referral Program', desc: 'Earn ₦500 instantly for every friend you refer. Unlimited referrals, unlimited earnings.' },
+              { icon: <Users className="w-6 h-6" />, title: 'Referral Program', desc: 'Earn 3% on the first deposit of every friend you refer. Unlimited referrals, unlimited earnings.' },
               { icon: <Clock className="w-6 h-6" />, title: 'Fast Withdrawals', desc: 'Request withdrawals anytime. Funds processed directly to your verified bank account within 24 hours.' },
               { icon: <BarChart3 className="w-6 h-6" />, title: 'Multiple Plans', desc: 'Investment tiers from ₦50.5K to ₦5M+. Scale your portfolio as your confidence grows.' },
             ].map(f => (
