@@ -61,3 +61,10 @@ VITE_APP_URL=https://www.arbalistcapital.com.ng
 - [x] CSP headers in vercel.json
 - [x] HSTS + X-Frame-Options
 - [x] .env in .gitignore — never committed to GitHub
+
+## 9. Referral System (3% of the first deposit)
+1. Open **SQL Editor** → paste `supabase/005_referral_3_percent.sql` → Run (safe to re-run)
+2. From then on, the first time the admin credits a *Deposit* to a referred user, the
+   referrer automatically receives 3% in their wallet and a `referral_bonus` transaction.
+3. To change the rate later, edit **both**: `REFERRAL_BONUS_RATE` in `src/lib/plans.ts`
+   (what the site displays) and `referral_bonus_rate()` in the SQL file (what is paid).
