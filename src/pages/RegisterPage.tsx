@@ -4,6 +4,8 @@ import { Lock, Mail, User, Phone, Eye, EyeOff, Gift } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import toast from "react-hot-toast";
 import { BrandLogo } from "@/components/BrandLogo";
+import { supabase } from "@/lib/supabase";
+import { REFERRAL_BONUS_PERCENT } from "@/lib/plans";
 
 export default function RegisterPage() {
   const { signUp } = useAuth();
@@ -15,7 +17,7 @@ export default function RegisterPage() {
     phone: "",
     password: "",
     confirmPassword: "",
-    referralCode: params.get("ref") ?? "",
+    referralCode: (params.get("ref") ?? "").trim().toUpperCase(),
   });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,20 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(form.email, form.password, form.fullName, form.phone, form.referralCode || undefined);
+
+    // Referral codes are stored in capitals. Clean what was typed, then make sure
+    // it really exists, otherwise the person who invited them would silently get nothing.
+    const code = form.referralCode.trim().toUpperCase();
+    if (code) {
+      const { data: exists, error: codeErr } = await supabase.rpc("referral_code_exists", { p_code: code });
+      if (!codeErr && exists === false) {
+        setLoading(false);
+        toast.error("That referral code doesn't exist. Check it, or clear the field to continue without one.");
+        return;
+      }
+    }
+
+    const { error } = await signUp(form.email, form.password, form.fullName, form.phone, code || undefined);
     setLoading(false);
     if (error) {
       toast.error(error.message);
@@ -108,8 +123,9 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-gray-300 mb-2">Referral Code <span className="text-gray-500">(optional)</span></label>
               <div className="relative">
                 <Gift className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input type="text" value={form.referralCode} onChange={set("referralCode")} className="w-full bg-dark-700/60 border border-lime-400/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-lime-400/40 focus:ring-1 focus:ring-lime-400/20 transition-all" placeholder="Enter referral code" />
+                <input type="text" value={form.referralCode} onChange={(e) => setForm((f) => ({ ...f, referralCode: e.target.value.toUpperCase() }))} autoCapitalize="characters" spellCheck={false} className="w-full bg-dark-700/60 border border-lime-400/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-lime-400/40 focus:ring-1 focus:ring-lime-400/20 transition-all" placeholder="Enter referral code" />
               </div>
+              <p className="mt-2 text-xs text-gray-500">The person who invited you earns {REFERRAL_BONUS_PERCENT}% of your first deposit.</p>
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-lime-400 to-lime-500 text-dark-800 font-bold py-4 rounded-xl hover:from-lime-300 hover:to-lime-400 transition-all shadow-lg shadow-lime-400/20 disabled:opacity-50 disabled:cursor-not-allowed">
