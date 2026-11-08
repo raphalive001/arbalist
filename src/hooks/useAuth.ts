@@ -69,7 +69,7 @@ export function useAuth() {
         data: {
           full_name:   fullName,
           phone,
-          referred_by: referralCode ?? null,
+          referred_by: referralCode?.trim().toUpperCase() || null,
         },
       },
     });
