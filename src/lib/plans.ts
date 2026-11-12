@@ -36,3 +36,25 @@ export const REFERRAL_BONUS_RATE = 0.03;
 export const REFERRAL_BONUS_PERCENT = Math.round(REFERRAL_BONUS_RATE * 10000) / 100; // 3
 export const referralBonusFor = (firstDeposit: number) =>
   Math.round(firstDeposit * REFERRAL_BONUS_RATE * 100) / 100;
+
+// Withdrawal fee: 5% of every withdrawal. Shown to investors INSIDE their dashboard only (never on public pages).
+// The fee is recorded on the withdrawal's own transaction (transactions.metadata) and enforced by the database
+// (supabase/withdrawal_fee_5pct.sql). If you ever change this percentage, change the SQL constant too.
+export const WITHDRAWAL_FEE_PERCENT = 5;
+export const WITHDRAWAL_FEE_RATE = WITHDRAWAL_FEE_PERCENT / 100;
+
+// Whole-kobo arithmetic so the preview matches the database's rounding exactly.
+export const withdrawalFee = (amount: number) => {
+  const kobo    = Math.round(amount * 100);
+  const feeKobo = Math.round((kobo * WITHDRAWAL_FEE_PERCENT) / 100);
+  return { fee: feeKobo / 100, net: (kobo - feeKobo) / 100 };
+};
+
+// Reads the fee recorded on a withdrawal transaction. null = no fee recorded (withdrawals made before the fee existed).
+export function withdrawalBreakdown(metadata: unknown): { fee: number; net: number } | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const m   = metadata as Record<string, unknown>;
+  const fee = Number(m.fee);
+  const net = Number(m.net);
+  return Number.isFinite(fee) && Number.isFinite(net) && fee > 0 ? { fee, net } : null;
+}
