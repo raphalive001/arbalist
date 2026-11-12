@@ -194,6 +194,7 @@ export interface Database {
           bank_name: string | null;
           account_number: string | null;
           account_name: string | null;
+          metadata: Json | null;
           created_at: string;
         };
         Insert: {
@@ -208,6 +209,7 @@ export interface Database {
           bank_name?: string | null;
           account_number?: string | null;
           account_name?: string | null;
+          metadata?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -222,6 +224,7 @@ export interface Database {
           bank_name?: string | null;
           account_number?: string | null;
           account_name?: string | null;
+          metadata?: Json | null;
           created_at?: string;
         };
         Relationships: [
