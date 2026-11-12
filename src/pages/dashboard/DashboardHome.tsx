@@ -4,6 +4,7 @@ import { TrendingUp, Wallet, Users, ShieldCheck, ArrowRight, Activity } from "lu
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { formatNGN } from "@/lib/plans";
+import WithdrawalFeeNote from "@/components/WithdrawalFeeNote";
 import type { Database } from "@/types/database";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
@@ -194,6 +195,7 @@ export default function DashboardHome() {
                   <p className={`text-sm font-bold ${txTypeColors[tx.type]}`}>
                     {txSign[tx.type]}{formatNGN(tx.amount)}
                   </p>
+                  <WithdrawalFeeNote tx={tx} />
                   <p className={`text-xs mt-0.5 capitalize ${tx.status === "success" ? "text-lime-400" : tx.status === "pending" ? "text-yellow-400" : "text-red-400"}`}>
                     {tx.status}
                   </p>
