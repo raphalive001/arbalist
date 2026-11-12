@@ -4,7 +4,7 @@ import {
   RefreshCw, ChevronLeft, ChevronRight, AlertCircle,
 } from 'lucide-react';
 import { useAdmin, type AdminTransaction } from '@/hooks/useAdmin';
-import { formatNGN } from '@/lib/plans';
+import { formatNGN, withdrawalBreakdown } from '@/lib/plans';
 import toast from 'react-hot-toast';
 
 type TxType   = 'all' | 'deposit' | 'withdrawal' | 'roi' | 'referral_bonus';
@@ -82,7 +82,7 @@ export default function AdminTransactions() {
               {pendingWithdrawals.length} pending withdrawal{pendingWithdrawals.length !== 1 ? 's' : ''} require action
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              Total: {formatNGN(pendingWithdrawals.reduce((s, t) => s + t.amount, 0))} — filter by "Withdrawal" below
+              Total to pay out (after fees): {formatNGN(pendingWithdrawals.reduce((s, t) => s + (withdrawalBreakdown(t.metadata)?.net ?? t.amount), 0))} — filter by "Withdrawal" below
             </p>
           </div>
         </div>
@@ -129,6 +129,7 @@ export default function AdminTransactions() {
                 const typeCfg   = TYPE_CFG[tx.type]   ?? TYPE_CFG.deposit;
                 const statusCfg = STATUS_CFG[tx.status] ?? STATUS_CFG.pending;
                 const isPendingWithdrawal = tx.type === 'withdrawal' && tx.status === 'pending';
+                const feeInfo = tx.type === 'withdrawal' ? withdrawalBreakdown(tx.metadata) : null;
 
                 return (
                   <tr key={tx.id} className={`hover:bg-dark-500/20 transition-all ${isPendingWithdrawal ? 'bg-orange-400/3' : ''}`}>
@@ -145,6 +146,11 @@ export default function AdminTransactions() {
                       <p className={`text-sm font-bold ${typeCfg.color}`}>
                         {typeCfg.sign}{formatNGN(tx.amount)}
                       </p>
+                      {feeInfo && (
+                        <p className="text-[11px] text-orange-300 mt-0.5">
+                          Fee {formatNGN(feeInfo.fee)} · {isPendingWithdrawal ? 'SEND' : 'Paid'} {formatNGN(feeInfo.net)}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="text-xs text-gray-400 font-mono truncate max-w-[100px]">{tx.reference ?? '—'}</p>
