@@ -260,7 +260,7 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-gray-500">
-              {["No hidden fees", "Daily ROI credited automatically", "Withdraw anytime", "Nigerian-based platform"].map((t) => (
+              {["KYC-verified withdrawals", "Daily ROI credited automatically", "Withdraw anytime", "Nigerian-based platform"].map((t) => (
                 <span key={t} className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-lime-400" />{t}</span>
               ))}
             </div>
