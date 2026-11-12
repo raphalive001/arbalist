@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { formatNGN } from '@/lib/plans';
+import { formatNGN, WITHDRAWAL_FEE_RATE, WITHDRAWAL_FEE_PERCENT, withdrawalFee } from '@/lib/plans';
+import WithdrawalFeeNote from '@/components/WithdrawalFeeNote';
 import toast from 'react-hot-toast';
 import type { Database } from '@/types/database';
 
@@ -82,6 +83,9 @@ export default function WalletPage() {
     if (profile.kyc_status !== 'verified')         { toast.error('Complete KYC verification before withdrawing'); return; }
     if (!bankName || !accNumber || !accName)       { toast.error('Fill in all bank account details'); return; }
 
+    // 5% withdrawal fee: the amount entered leaves the wallet, the investor receives the net
+    const { fee, net } = withdrawalFee(amt);
+
     setSubmitting(true);
     const ref = `WDR-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
@@ -96,6 +100,7 @@ export default function WalletPage() {
       account_number: accNumber,
       account_name:   accName,
       description:    `Withdrawal to ${bankName}`,
+      metadata:       { fee_rate: WITHDRAWAL_FEE_RATE, fee, net },
     };
     const { error: txErr } = await supabase.from('transactions').insert(txRow);
 
@@ -110,18 +115,22 @@ export default function WalletPage() {
     refetchProfile?.();
     await loadTransactions();
 
-    toast.success('Withdrawal request submitted! Processing within 24 hrs.');
+    toast.success(`Withdrawal submitted! You will receive ${formatNGN(net)} after the ${WITHDRAWAL_FEE_PERCENT}% fee. Processing within 24 hrs.`);
     setAmount(''); setBankName(''); setAccNumber(''); setAccName('');
     setTab('overview');
     setSubmitting(false);
 
     // Auto-open WhatsApp to notify admin
     openWhatsApp(
-      `Hello Arbalist Capital,\n\nI have submitted a withdrawal request.\n\nName: ${profile.full_name}\nEmail: ${profile.email}\nAmount: ${formatNGN(amt)}\nBank: ${bankName}\nAccount: ${accNumber} (${accName})\nRef: ${ref}\n\nPlease process.`
+      `Hello Arbalist Capital,\n\nI have submitted a withdrawal request.\n\nName: ${profile.full_name}\nEmail: ${profile.email}\nAmount: ${formatNGN(amt)}\nFee (${WITHDRAWAL_FEE_PERCENT}%): ${formatNGN(fee)}\nTo be paid: ${formatNGN(net)}\nBank: ${bankName}\nAccount: ${accNumber} (${accName})\nRef: ${ref}\n\nPlease process.`
     );
   }
 
   // ── UI helpers ───────────────────────────────────────────────────
+  // Live fee preview for the withdraw form
+  const amountNum  = parseFloat(amount);
+  const feePreview = amountNum > 0 ? withdrawalFee(amountNum) : null;
+
   const txIcon: Record<string, React.ReactNode> = {
     deposit:        <ArrowDownCircle className="w-5 h-5 text-lime-400"   />,
     withdrawal:     <ArrowUpCircle   className="w-5 h-5 text-red-400"    />,
@@ -205,6 +214,7 @@ export default function WalletPage() {
                     <p className={`text-sm font-bold ${tx.type === 'withdrawal' ? 'text-red-400' : 'text-lime-400'}`}>
                       {tx.type === 'withdrawal' ? '-' : '+'}{formatNGN(tx.amount)}
                     </p>
+                    <WithdrawalFeeNote tx={tx} />
                     <div className="flex items-center justify-end gap-1 mt-0.5">
                       {statusIcon(tx.status)}
                       <span className="text-xs text-gray-500 capitalize">{tx.status}</span>
@@ -278,6 +288,9 @@ export default function WalletPage() {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-gray-500 pt-1">
+              Note: a {WITHDRAWAL_FEE_PERCENT}% fee applies when you withdraw from your wallet.
+            </p>
           </div>
 
           {/* Quick amounts */}
@@ -317,6 +330,17 @@ export default function WalletPage() {
             </div>
           )}
 
+          <div className="flex items-start gap-3 bg-lime-400/5 border border-lime-400/15 rounded-xl p-4 mb-5">
+            <AlertCircle className="w-5 h-5 text-lime-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-lime-400">{WITHDRAWAL_FEE_PERCENT}% withdrawal fee</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                A {WITHDRAWAL_FEE_PERCENT}% fee is deducted from every withdrawal. The amount you enter leaves your wallet,
+                and you receive the rest in your bank account.
+              </p>
+            </div>
+          </div>
+
           <form onSubmit={handleWithdraw} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -336,6 +360,22 @@ export default function WalletPage() {
                   </button>
                 ))}
               </div>
+              {feePreview && (
+                <div className="bg-dark-700/60 rounded-xl p-4 mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Withdrawal amount</span>
+                    <span className="text-white font-semibold">{formatNGN(amountNum)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Fee ({WITHDRAWAL_FEE_PERCENT}%)</span>
+                    <span className="text-red-400 font-semibold">-{formatNGN(feePreview.fee)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-lime-400/10 pt-2">
+                    <span className="text-gray-300">You receive</span>
+                    <span className="text-lime-400 font-bold">{formatNGN(feePreview.net)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
