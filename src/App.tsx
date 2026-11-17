@@ -2,12 +2,16 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 // Public pages
-import HomePage           from '@/pages/HomePage';
-import AllPlansPage       from '@/pages/AllPlansPage';
-import LoginPage          from '@/pages/LoginPage';
-import RegisterPage       from '@/pages/RegisterPage';
-import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
-import ResetPasswordPage  from '@/pages/ResetPasswordPage';   // ← NEW
+import HomePage             from '@/pages/HomePage';
+import AllPlansPage         from '@/pages/AllPlansPage';
+import LoginPage            from '@/pages/LoginPage';
+import RegisterPage         from '@/pages/RegisterPage';
+import ForgotPasswordPage   from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage    from '@/pages/ResetPasswordPage';
+import TermsPage            from '@/pages/TermsPage';
+import PrivacyPage          from '@/pages/PrivacyPage';
+import RiskPage             from '@/pages/RiskPage';
+import CorporateProfilePage from '@/pages/CorporateProfilePage';
 
 // User dashboard
 import DashboardLayout   from '@/pages/dashboard/DashboardLayout';
@@ -53,7 +57,11 @@ export default function App() {
     <Routes>
       {/* ── Public ───────────────────────────────── */}
       <Route path="/"      element={<HomePage />} />
-      <Route path="/plans" element={<AllPlansPage />} />
+      <Route path="/plans"            element={<AllPlansPage />} />
+      <Route path="/company-profile"  element={<CorporateProfilePage />} />
+      <Route path="/terms"            element={<TermsPage />} />
+      <Route path="/privacy"          element={<PrivacyPage />} />
+      <Route path="/risk-disclaimer"  element={<RiskPage />} />
 
       {/* ── Auth ─────────────────────────────────── */}
       <Route path="/login"            element={<RequireGuest><LoginPage /></RequireGuest>} />
