@@ -279,6 +279,7 @@ export default function HomePage() {
             <div>
               <p className="font-semibold text-white mb-3 text-sm">Platform</p>
               <div className="space-y-2">
+                <Link to="/company-profile" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Corporate Profile</Link>
                 <Link to="/plans" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Investment Plans</Link>
                 <Link to="/register" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Create Account</Link>
                 <Link to="/login" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Sign In</Link>
@@ -287,9 +288,9 @@ export default function HomePage() {
             <div>
               <p className="font-semibold text-white mb-3 text-sm">Legal</p>
               <div className="space-y-2">
-                <a href="#" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Terms of Service</a>
-                <a href="#" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Privacy Policy</a>
-                <a href="#" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Risk Disclaimer</a>
+                <Link to="/terms" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Terms of Service</Link>
+                <Link to="/privacy" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Privacy Policy</Link>
+                <Link to="/risk-disclaimer" className="block text-sm text-gray-500 hover:text-lime-400 transition-colors">Risk Disclaimer</Link>
               </div>
             </div>
             <div>
