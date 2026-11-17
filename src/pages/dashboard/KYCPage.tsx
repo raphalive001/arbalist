@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ShieldCheck, Upload, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
@@ -6,34 +6,91 @@ import { compressImage } from '@/lib/compressImage';
 import toast from 'react-hot-toast';
 import type { Database } from '@/types/database';
 
-type DocType = Database['public']['Tables']['kyc_documents']['Insert']['doc_type'];
+type DocType     = Database['public']['Tables']['kyc_documents']['Insert']['doc_type'];
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
 const DOC_TYPES: { value: DocType; label: string }[] = [
-  { value: 'national_id',     label: 'National ID Card'      },
-  { value: 'drivers_license', label: "Driver's License"      },
+  { value: 'national_id',     label: 'National ID Card'       },
+  { value: 'drivers_license', label: "Driver's License"       },
   { value: 'passport',        label: 'International Passport' },
-  { value: 'voters_card',     label: "Voter's Card"          },
+  { value: 'voters_card',     label: "Voter's Card"           },
 ];
 
-/**
- * Compresses the file (images only, PDFs pass through), then uploads to
- * the kyc-documents bucket. Returns the stored object path.
- */
+// Broad accept string that works across desktop and Android browsers.
+// Listing explicit MIME types alongside image/* prevents Android Chrome
+// from blocking the picker on certain devices.
+const ACCEPT = 'image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.pdf';
+
 async function uploadFile(userId: string, file: File, folder: string): Promise<string> {
   const compressed = await compressImage(file);
-  const ext  = compressed.name.split('.').pop();
+  const ext  = compressed.name.split('.').pop() ?? 'jpg';
   const path = `${userId}/${folder}/${Date.now()}.${ext}`;
   const { error } = await supabase.storage
     .from('kyc-documents')
     .upload(path, compressed, { upsert: true });
   if (error) throw error;
-  // Bucket is private: store the object path; the admin panel signs it when viewing.
-  return path;
+  return path; // bucket is private; admin panel signs URLs when viewing
 }
+
+// ─── FileInput ────────────────────────────────────────────────────────────────
+// Defined OUTSIDE the page component so React never treats it as a new
+// component type between renders — prevents unmount/remount that caused
+// onChange to fire but state updates to be lost on mobile.
+
+interface FileInputProps {
+  label:    string;
+  file:     File | null;
+  onChange: (f: File) => void;
+  required?: boolean;
+}
+
+function FileInput({ label, file, onChange, required = false }: FileInputProps) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
+    if (picked) onChange(picked);
+    // Reset the input value so picking the same file again still fires onChange
+    e.target.value = '';
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-300 mb-2">
+        {label}
+        {required && <span className="text-red-400 ml-1">*</span>}
+      </label>
+      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-lime-400/20 rounded-xl cursor-pointer hover:border-lime-400/40 hover:bg-lime-400/5 transition-all">
+        <input
+          type="file"
+          className="hidden"
+          accept={ACCEPT}
+          onChange={handleChange}
+        />
+        {file ? (
+          <div className="text-center px-4">
+            <CheckCircle className="w-6 h-6 text-lime-400 mx-auto mb-1" />
+            <p className="text-xs text-lime-400 font-medium truncate max-w-full">{file.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {file.size > 100 * 1024
+                ? `${(file.size / 1024).toFixed(0)} KB → compressing to ≤100 KB`
+                : `${(file.size / 1024).toFixed(0)} KB`}
+            </p>
+          </div>
+        ) : (
+          <div className="text-center">
+            <Upload className="w-6 h-6 text-gray-500 mx-auto mb-1" />
+            <p className="text-xs text-gray-500">Click to upload</p>
+          </div>
+        )}
+      </label>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function KYCPage() {
   const { profile, refetchProfile } = useAuth();
+
   const [docType,    setDocType]    = useState<DocType>('national_id');
   const [docNumber,  setDocNumber]  = useState('');
   const [frontFile,  setFrontFile]  = useState<File | null>(null);
@@ -41,31 +98,40 @@ export default function KYCPage() {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [loading,    setLoading]    = useState(false);
 
+  // Stable callbacks so FileInput never receives a new function reference
+  const onFront  = useCallback((f: File) => setFrontFile(f),  []);
+  const onBack   = useCallback((f: File) => setBackFile(f),   []);
+  const onSelfie = useCallback((f: File) => setSelfieFile(f), []);
+
   const status = profile?.kyc_status ?? 'pending';
 
   const statusConfig = {
-    pending:   { icon: <Clock        className="w-6 h-6" />, color: 'text-gray-400',   bg: 'bg-gray-400/10 border-gray-400/20',     label: 'Not Submitted'              },
-    submitted: { icon: <Clock        className="w-6 h-6" />, color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20', label: 'Under Review'               },
-    verified:  { icon: <CheckCircle  className="w-6 h-6" />, color: 'text-lime-400',   bg: 'bg-lime-400/10 border-lime-400/20',     label: 'Verified'                   },
-    rejected:  { icon: <XCircle      className="w-6 h-6" />, color: 'text-red-400',    bg: 'bg-red-400/10 border-red-400/20',       label: 'Rejected — Please Resubmit' },
+    pending:   { icon: <Clock       className="w-6 h-6" />, color: 'text-gray-400',   bg: 'bg-gray-400/10 border-gray-400/20',     label: 'Not Submitted'              },
+    submitted: { icon: <Clock       className="w-6 h-6" />, color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20', label: 'Under Review'               },
+    verified:  { icon: <CheckCircle className="w-6 h-6" />, color: 'text-lime-400',   bg: 'bg-lime-400/10 border-lime-400/20',     label: 'Verified'                   },
+    rejected:  { icon: <XCircle     className="w-6 h-6" />, color: 'text-red-400',    bg: 'bg-red-400/10 border-red-400/20',       label: 'Rejected — Please Resubmit' },
   } as const;
 
   const cfg = statusConfig[status];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!frontFile || !selfieFile) { toast.error('Front photo and selfie are required'); return; }
-    if (!profile) return;
+
+    if (!frontFile)  { toast.error('Please upload the front of your document'); return; }
+    if (!selfieFile) { toast.error('Please upload a selfie with your document'); return; }
+    if (!profile)    return;
+
     setLoading(true);
     try {
       const [frontUrl, selfieUrl] = await Promise.all([
         uploadFile(profile.id, frontFile,  'front'),
         uploadFile(profile.id, selfieFile, 'selfie'),
       ]);
+
       let backUrl: string | null = null;
       if (backFile) backUrl = await uploadFile(profile.id, backFile, 'back');
 
-      const { error } = await supabase.from('kyc_documents').insert({
+      const { error: insertErr } = await supabase.from('kyc_documents').insert({
         user_id:    profile.id,
         doc_type:   docType,
         doc_number: docNumber,
@@ -74,7 +140,7 @@ export default function KYCPage() {
         selfie_url: selfieUrl,
         status:     'pending',
       });
-      if (error) throw error;
+      if (insertErr) throw insertErr;
 
       const profileUpdate: ProfileUpdate = { kyc_status: 'submitted' };
       const { error: statusErr } = await supabase
@@ -82,58 +148,16 @@ export default function KYCPage() {
         .update(profileUpdate)
         .eq('id', profile.id);
       if (statusErr) throw new Error(
-        'Documents saved, but your status could not be updated: ' + statusErr.message,
+        'Documents saved, but status could not be updated: ' + statusErr.message,
       );
 
       refetchProfile?.();
       toast.success('KYC submitted successfully!');
     } catch (err: unknown) {
-      toast.error((err as Error).message ?? 'Upload failed');
+      toast.error((err as Error).message ?? 'Upload failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  }
-
-  function FileInput({
-    label, accept = 'image/*,.pdf', onChange, file, required = false,
-  }: {
-    label: string;
-    accept?: string;
-    onChange: (f: File) => void;
-    file: File | null;
-    required?: boolean;
-  }) {
-    return (
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          {label}{required && <span className="text-red-400 ml-1">*</span>}
-        </label>
-        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-lime-400/20 rounded-xl cursor-pointer hover:border-lime-400/40 hover:bg-lime-400/5 transition-all">
-          <input
-            type="file"
-            className="hidden"
-            accept={accept}
-            onChange={(e) => e.target.files?.[0] && onChange(e.target.files[0])}
-          />
-          {file ? (
-            <div className="text-center px-4">
-              <CheckCircle className="w-6 h-6 text-lime-400 mx-auto mb-1" />
-              <p className="text-xs text-lime-400 font-medium truncate max-w-full">{file.name}</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {file.size > 100 * 1024
-                  ? `${(file.size / 1024).toFixed(0)} KB → will compress to ≤100 KB`
-                  : `${(file.size / 1024).toFixed(0)} KB`}
-              </p>
-            </div>
-          ) : (
-            <div className="text-center">
-              <Upload className="w-6 h-6 text-gray-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-500">Click to upload</p>
-            </div>
-          )}
-        </label>
-      </div>
-    );
   }
 
   return (
@@ -142,10 +166,12 @@ export default function KYCPage() {
         <h1 className="text-2xl font-bold font-serif text-white flex items-center gap-2">
           <ShieldCheck className="w-6 h-6 text-lime-400" /> KYC Verification
         </h1>
-        <p className="mt-1 text-gray-400">Verify your identity to unlock withdrawals and higher deposit limits.</p>
+        <p className="mt-1 text-gray-400">
+          Verify your identity to unlock withdrawals and higher deposit limits.
+        </p>
       </div>
 
-      {/* Status */}
+      {/* Status banner */}
       <div className={`flex items-center gap-4 border rounded-2xl p-5 ${cfg.bg}`}>
         <div className={cfg.color}>{cfg.icon}</div>
         <div>
@@ -153,18 +179,20 @@ export default function KYCPage() {
             Status: <span className={cfg.color}>{cfg.label}</span>
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
-            {status === 'verified'  ? 'Your identity has been successfully verified.'                                           :
-             status === 'submitted' ? 'Our team is reviewing your documents. This usually takes 24–48 hours.'                  :
-             status === 'rejected'  ? 'Your documents were not accepted. Please resubmit with clearer images.'                 :
+            {status === 'verified'  ? 'Your identity has been successfully verified.'                          :
+             status === 'submitted' ? 'Our team is reviewing your documents. This usually takes 24–48 hours.' :
+             status === 'rejected'  ? 'Your documents were not accepted. Please resubmit with clearer images.' :
                                       'Submit your identity documents to complete verification.'}
           </p>
         </div>
       </div>
 
-      {/* Form */}
+      {/* Form — hidden once verified or under review */}
       {status !== 'verified' && status !== 'submitted' && (
         <div className="bg-dark-600/40 border border-lime-400/10 rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Document type */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Document Type <span className="text-red-400">*</span>
@@ -174,10 +202,13 @@ export default function KYCPage() {
                 onChange={(e) => setDocType(e.target.value as DocType)}
                 className="w-full bg-dark-700/60 border border-lime-400/10 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-lime-400/40 transition-all"
               >
-                {DOC_TYPES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                {DOC_TYPES.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
               </select>
             </div>
 
+            {/* Document number */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Document Number <span className="text-red-400">*</span>
@@ -192,12 +223,14 @@ export default function KYCPage() {
               />
             </div>
 
+            {/* File uploads */}
             <div className="grid sm:grid-cols-3 gap-4">
-              <FileInput label="Front of Document" file={frontFile}  onChange={setFrontFile}  required />
-              <FileInput label="Back of Document"  file={backFile}   onChange={setBackFile}            />
-              <FileInput label="Selfie with Doc"   file={selfieFile} onChange={setSelfieFile} required />
+              <FileInput label="Front of Document" file={frontFile}  onChange={onFront}  required />
+              <FileInput label="Back of Document"  file={backFile}   onChange={onBack}            />
+              <FileInput label="Selfie with Doc"   file={selfieFile} onChange={onSelfie} required />
             </div>
 
+            {/* Requirements */}
             <div className="bg-dark-700/60 rounded-xl p-4 text-xs text-gray-400 space-y-1">
               <p className="font-semibold text-gray-300 mb-2">Requirements:</p>
               <p>• Documents must be clear, unedited and not expired</p>
