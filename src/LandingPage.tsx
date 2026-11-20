@@ -17,7 +17,7 @@ const WA_NUMBER = '2349054416277';
 const WA_BASE = `https://wa.me/${WA_NUMBER}`;
 const EMAIL = 'arbalistcapitalinvesting@gmail.com';
 
-const LOGO_SRC = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzg0Y2MxNiIvPjx0ZXh0IHg9IjMyIiB5PSI0NiIgZm9udC1mYW1pbHk9InNlcmlmIiBmb250LXNpemU9IjM2IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzFhMWYyZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QTwvdGV4dD48L3N2Zz4=';
+const LOGO_SRC = '/arbalist-logo.jpeg';
 
 const WhatsAppIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -26,10 +26,22 @@ const WhatsAppIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
 );
 
 const BrandLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
-  const sizes = { sm: 'h-8 w-8', md: 'h-10 w-10', lg: 'h-14 w-14' };
+  const sizes = {
+    sm: { img: 'w-7 h-7',  text: 'text-base',  wrap: 'gap-2'   },
+    md: { img: 'w-9 h-9',  text: 'text-xl',    wrap: 'gap-2.5' },
+    lg: { img: 'w-12 h-12', text: 'text-2xl',  wrap: 'gap-3'   },
+  };
+  const s = sizes[size];
   return (
-    <div className={`${sizes[size]} rounded-xl overflow-hidden flex-shrink-0`}>
-      <img src={LOGO_SRC} alt="Arbalist Capital" className="w-full h-full object-cover" />
+    <div className={`flex items-center ${s.wrap}`}>
+      <img
+        src={LOGO_SRC}
+        alt="Arbalist Capital logo"
+        className={`${s.img} rounded-lg object-cover flex-shrink-0 shadow-md shadow-yellow-900/30`}
+      />
+      <span className={`font-bold font-serif ${s.text} text-white`}>
+        Arbalist <span className="text-lime-400">Capital</span>
+      </span>
     </div>
   );
 };
