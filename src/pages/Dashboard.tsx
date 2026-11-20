@@ -5,6 +5,7 @@ import {
   Bell, Settings, ChevronRight, Plus, Minus, RefreshCw, Eye, EyeOff, Gift,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { BrandLogo } from '../components/BrandLogo';
 import { formatNaira, maskAccountNumber } from '../utils/security';
 import { initiatePayment, PLAN_AMOUNTS } from '../utils/paystack';
 
@@ -300,10 +301,8 @@ export default function Dashboard({ onLogout, onKYC }: { onLogout: () => void; o
       <nav className="sticky top-0 z-40 bg-dark-800/95 backdrop-blur-xl border-b border-lime-400/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-lime-400/10 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-lime-400" />
-            </div>
-            <div>
+            <BrandLogo size="sm" />
+            <div className="hidden sm:block border-l border-lime-400/20 pl-3">
               <p className="text-sm font-bold text-white">{(profile.full_name ?? 'User').split(' ')[0]}</p>
               <p className={`text-xs ${kycColor}`}>{kycBadge}</p>
             </div>
