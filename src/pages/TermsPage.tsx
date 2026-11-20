@@ -110,12 +110,18 @@ export default function TermsPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-semibold text-lime-400 mb-3">Returning of Investor's Capital</h2>
+            <p className="text-gray-400">Investment Capital shall be deposited back to an investor's account (wallet) after <strong className="text-white">90 days</strong> of an active investment with Arbalist Capital. Upon the completion of the 90-day investment period, the investor may choose to reinvest the returned capital into a new or existing investment plan, or submit a withdrawal request in accordance with the Company's Withdrawal Policy. All capital returns are subject to the standard withdrawal conditions and applicable service charges.</p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-semibold text-lime-400 mb-3">Amendments and Updates</h2>
             <p className="text-gray-400">Arbalist Capital reserves the right to review and update its policies when necessary to reflect changes in business operations, security procedures, services or applicable laws. Material changes shall be communicated to affected users. Changes affecting existing investment agreements shall follow the appropriate contractual procedures. No policy update shall unlawfully remove accrued user rights or introduce undisclosed financial obligations.</p>
           </section>
 
           <div className="border-t border-lime-400/10 pt-8 text-center">
             <p className="text-xs text-gray-600 font-semibold tracking-widest uppercase">ARBALIST CAPITAL — Professionalism. Transparency. Accountability.</p>
+            <p className="text-xs text-gray-500 mt-3">Last Updated: 20 November 2026</p>
             <p className="text-xs text-gray-600 mt-2">© {new Date().getFullYear()} Arbalist Capital. All rights reserved. All services subject to applicable Nigerian laws.</p>
           </div>
 
