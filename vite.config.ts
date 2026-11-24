@@ -1,3 +1,12 @@
-// vite.config.ts
-plugins: [react()],
-// configure your server to inject a nonce header and reference it in vercel.json
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
