@@ -9,10 +9,7 @@ import { PLANS, formatNGN, DAILY_RATE } from '@/lib/plans';
 import toast from 'react-hot-toast';
 import type { Database } from '@/types/database';
 
-type Investment      = Database['public']['Tables']['investments']['Row'];
-type InvestmentInsert = Database['public']['Tables']['investments']['Insert'];
-type ProfileUpdate   = Database['public']['Tables']['profiles']['Update'];
-type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
+type Investment = Database['public']['Tables']['investments']['Row'];
 
 // Confirm modal shown before deducting wallet
 function ConfirmModal({
@@ -127,55 +124,23 @@ export default function InvestPage() {
     setInvesting(true);
 
     try {
-      const currentBalance = profile.wallet_balance ?? 0;
+      // FIX: Call the server-side atomic RPC instead of doing client-side arithmetic.
+      // The database function checks balance, deducts, and creates the investment
+      // in a single transaction — race conditions and double-spend are impossible.
+      const { error } = await supabase.rpc('place_investment', {
+        p_plan_id:    planId,
+        p_plan_label: label,
+        p_amount:     amount,
+        p_daily_rate: DAILY_RATE,
+      });
 
-      // Final guard — re-check balance at execution time
-      if (currentBalance < amount) {
-        toast.error('Insufficient wallet balance');
-        setInvesting(false);
-        setConfirmPlan(null);
+      if (error) {
+        // Surface the DB-level error message (e.g. "Insufficient wallet balance")
+        toast.error(error.message ?? 'Investment failed — please try again');
         return;
       }
 
-      const newBalance       = currentBalance - amount;
-      const newTotalInvested = (profile.total_invested ?? 0) + amount;
-
-      // 1. Insert investment record
-      const invRow: InvestmentInsert = {
-        user_id:      profile.id,
-        plan_id:      planId,
-        amount,
-        daily_rate:   DAILY_RATE,
-        status:       'active',
-        start_date:   new Date().toISOString(),
-        total_earned: 0,
-      };
-      const { error: invErr } = await supabase.from('investments').insert(invRow);
-      if (invErr) throw invErr;
-
-      // 2. Deduct wallet, update total_invested
-      const profileUpdate: ProfileUpdate = {
-        wallet_balance: newBalance,
-        total_invested: newTotalInvested,
-      };
-      const { error: profileErr } = await supabase
-        .from('profiles')
-        .update(profileUpdate)
-        .eq('id', profile.id);
-      if (profileErr) throw profileErr;
-
-      // 3. Log transaction
-      const txRow: TransactionInsert = {
-        user_id:     profile.id,
-        type:        'deposit',
-        amount,
-        status:      'success',
-        reference:   `INVEST-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
-        description: `Investment activated — ${label}`,
-      };
-      await supabase.from('transactions').insert(txRow);
-
-      // 4. Refresh profile in UI
+      // Refresh profile and investment list from server
       refetchProfile?.();
       await loadInvestments();
 
