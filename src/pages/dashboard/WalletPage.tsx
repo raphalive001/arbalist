@@ -10,9 +10,7 @@ import WithdrawalFeeNote from '@/components/WithdrawalFeeNote';
 import toast from 'react-hot-toast';
 import type { Database } from '@/types/database';
 
-type Transaction  = Database['public']['Tables']['transactions']['Row'];
-type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
-type TxInsert     = Database['public']['Tables']['transactions']['Insert'];
+type Transaction = Database['public']['Tables']['transactions']['Row'];
 
 const BANKS = [
   'Access Bank', 'GTBank', 'First Bank', 'Zenith Bank', 'UBA',
@@ -49,6 +47,8 @@ export default function WalletPage() {
       .from('transactions')
       .select('*')
       .eq('user_id', profile.id)
+      // Hide the internal zero-amount KYC bank-detail records from the transaction history
+      .neq('description', 'Bank details registered during KYC')
       .order('created_at', { ascending: false })
       .limit(30);
     if (data) setTransactions(data);
@@ -78,40 +78,33 @@ export default function WalletPage() {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!profile) return;
-    if (!amt || amt < 5000)                        { toast.error('Minimum withdrawal is ₦5,000'); return; }
-    if (amt > (profile.wallet_balance ?? 0))       { toast.error('Insufficient wallet balance'); return; }
-    if (profile.kyc_status !== 'verified')         { toast.error('Complete KYC verification before withdrawing'); return; }
-    if (!bankName || !accNumber || !accName)       { toast.error('Fill in all bank account details'); return; }
 
-    // 5% withdrawal fee: the amount entered leaves the wallet, the investor receives the net
+    // Client-side pre-checks (UX only — the DB function enforces these server-side too)
+    if (!amt || amt < 5000)                  { toast.error('Minimum withdrawal is ₦5,000'); return; }
+    if (amt > (profile.wallet_balance ?? 0)) { toast.error('Insufficient wallet balance'); return; }
+    if (profile.kyc_status !== 'verified')   { toast.error('Complete KYC verification before withdrawing'); return; }
+    if (!bankName || !accNumber || !accName) { toast.error('Fill in all bank account details'); return; }
+
     const { fee, net } = withdrawalFee(amt);
 
     setSubmitting(true);
-    const ref = `WDR-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
-    // Insert pending withdrawal transaction
-    const txRow: TxInsert = {
-      user_id:        profile.id,
-      type:           'withdrawal',
-      amount:         amt,
-      status:         'pending',
-      reference:      ref,
-      bank_name:      bankName,
-      account_number: accNumber,
-      account_name:   accName,
-      description:    `Withdrawal to ${bankName}`,
-      metadata:       { fee_rate: WITHDRAWAL_FEE_RATE, fee, net },
-    };
-    const { error: txErr } = await supabase.from('transactions').insert(txRow);
+    // FIX: Use the atomic server-side RPC instead of separate INSERT + UPDATE.
+    // The database function validates balance and deducts atomically — no race condition.
+    const { data: ref, error } = await supabase.rpc('request_withdrawal', {
+      p_amount:         amt,
+      p_bank_name:      bankName,
+      p_account_number: accNumber,
+      p_account_name:   accName,
+    });
 
-    if (txErr) { toast.error(txErr.message); setSubmitting(false); return; }
+    if (error) {
+      toast.error(error.message ?? 'Withdrawal failed — please try again');
+      setSubmitting(false);
+      return;
+    }
 
-    // Deduct from wallet immediately (held pending admin approval)
-    const profileUpdate: ProfileUpdate = {
-      wallet_balance: (profile.wallet_balance ?? 0) - amt,
-    };
-    await supabase.from('profiles').update(profileUpdate).eq('id', profile.id);
-
+    // Refresh profile balance from server (the RPC already updated it)
     refetchProfile?.();
     await loadTransactions();
 
@@ -122,12 +115,11 @@ export default function WalletPage() {
 
     // Auto-open WhatsApp to notify admin
     openWhatsApp(
-      `Hello Arbalist Capital,\n\nI have submitted a withdrawal request.\n\nName: ${profile.full_name}\nEmail: ${profile.email}\nAmount: ${formatNGN(amt)}\nFee (${WITHDRAWAL_FEE_PERCENT}%): ${formatNGN(fee)}\nTo be paid: ${formatNGN(net)}\nBank: ${bankName}\nAccount: ${accNumber} (${accName})\nRef: ${ref}\n\nPlease process.`
+      `Hello Arbalist Capital,\n\nI have submitted a withdrawal request.\n\nName: ${profile.full_name}\nEmail: ${profile.email}\nAmount: ${formatNGN(amt)}\nFee (${WITHDRAWAL_FEE_PERCENT}%): ${formatNGN(fee)}\nTo be paid: ${formatNGN(net)}\nBank: ${bankName}\nAccount: ${accNumber} (${accName})\nRef: ${ref ?? ''}\n\nPlease process.`
     );
   }
 
   // ── UI helpers ───────────────────────────────────────────────────
-  // Live fee preview for the withdraw form
   const amountNum  = parseFloat(amount);
   const feePreview = amountNum > 0 ? withdrawalFee(amountNum) : null;
 
