@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
 import type { Database } from '@/types/database';
 
 export type AdminProfile     = Database['public']['Tables']['profiles']['Row'];
@@ -26,18 +25,28 @@ export interface AdminStats {
 }
 
 export function useAdmin() {
-  const { profile, loading: authLoading } = useAuth();
   const [isAdmin,  setIsAdmin]  = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!profile) { setChecking(false); return; }
+    // FIX: Read admin status from the Supabase JWT app_metadata, NOT the profiles table.
+    // app_metadata can only be written by the service role (server-side), so a user
+    // cannot elevate themselves by editing their own profile row.
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const flag = user?.app_metadata?.is_admin === true;
+      setIsAdmin(flag);
+      setChecking(false);
+    });
 
-    const flag = (profile as any)?.is_admin === true;
-    setIsAdmin(flag);
-    setChecking(false);
-  }, [profile, authLoading]);
+    // Keep in sync if the session changes (e.g. token refresh picks up a new claim)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const flag = session?.user?.app_metadata?.is_admin === true;
+      setIsAdmin(flag);
+      setChecking(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // ── Stats ──────────────────────────────────────────────────────────
   const fetchStats = useCallback(async (): Promise<AdminStats> => {
@@ -100,8 +109,6 @@ export function useAdmin() {
 
   // ── KYC ───────────────────────────────────────────────────────────
   const fetchKYCQueue = useCallback(async () => {
-    // kyc_documents has TWO foreign keys to profiles (user_id, reviewed_by), so the
-    // embed must name which one to follow or PostgREST rejects the whole query.
     return supabase
       .from('kyc_documents')
       .select('*, profiles!kyc_documents_user_id_fkey(full_name, email, phone)')
@@ -135,8 +142,6 @@ export function useAdmin() {
     return { error: profileErr };
   }, []);
 
-  // The kyc-documents bucket is private. Turn a stored path (or an old full public URL)
-  // into a short-lived signed URL the admin's browser can actually load.
   const getKYCFileUrl = useCallback(async (value: string | null): Promise<string | null> => {
     if (!value) return null;
     const marker = '/kyc-documents/';
@@ -201,7 +206,6 @@ export function useAdmin() {
           .eq('id', userId);
       }
     } else {
-      // Mark as paid — update total_withdrawn
       const { data: prof } = await supabase
         .from('profiles')
         .select('total_withdrawn')
@@ -217,9 +221,7 @@ export function useAdmin() {
     return { error: null };
   }, []);
 
-  // ── Credit wallet (manual bank transfer confirmed by admin) ────────
-  // Ledger entry is written FIRST. If it fails we stop, so a balance can never
-  // change without a matching transaction record.
+  // ── Credit wallet ──────────────────────────────────────────────────
   const creditWallet = useCallback(async (
     userId: string,
     amount: number,
@@ -235,7 +237,6 @@ export function useAdmin() {
 
     const isEarning = type === 'roi' || type === 'referral_bonus';
 
-    // 1) Ledger entry
     const { data: tx, error: txErr } = await supabase
       .from('transactions')
       .insert({
@@ -250,7 +251,6 @@ export function useAdmin() {
       .single();
     if (txErr || !tx) return { error: txErr ?? new Error('Could not record the transaction') };
 
-    // 2) Balance
     const { error: profileErr } = await supabase
       .from('profiles')
       .update({
@@ -260,7 +260,6 @@ export function useAdmin() {
       .eq('id', userId);
 
     if (profileErr) {
-      // Balance did not change, so void the ledger line we just wrote
       await supabase.from('transactions').update({ status: 'failed' }).eq('id', tx.id);
       return { error: profileErr };
     }
@@ -268,21 +267,16 @@ export function useAdmin() {
     return { error: null };
   }, []);
 
-  // ── Credit ROI (alias kept for backwards compatibility) ────────────
   const creditROI = useCallback(async (userId: string, amount: number, note: string) => {
     return creditWallet(userId, amount, note, 'roi');
   }, [creditWallet]);
 
-  // ── Run daily ROI for ALL active investments ───────────────────────
-  // Runs inside the database (credit_daily_roi, see supabase/004_*.sql) so it is
-  // atomic, and each investment can only be credited once per calendar day.
   const runDailyROI = useCallback(async () => {
     const { data, error } = await supabase.rpc('credit_daily_roi');
     if (error) return { error, count: 0 };
     return { error: null, count: typeof data === 'number' ? data : 0 };
   }, []);
 
-  // ── Update user profile fields ─────────────────────────────────────
   const updateUserProfile = useCallback(async (
     userId: string,
     updates: Partial<Database['public']['Tables']['profiles']['Update']>,
