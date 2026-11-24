@@ -293,6 +293,24 @@ export interface Database {
         Args: { p_code: string };
         Returns: boolean;
       };
+      place_investment: {
+        Args: {
+          p_plan_id: string;
+          p_plan_label: string;
+          p_amount: number;
+          p_daily_rate: number;
+        };
+        Returns: void;
+      };
+      request_withdrawal: {
+        Args: {
+          p_amount: number;
+          p_bank_name: string;
+          p_account_number: string;
+          p_account_name: string;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;
