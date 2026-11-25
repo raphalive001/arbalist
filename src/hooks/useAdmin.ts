@@ -28,25 +28,53 @@ export function useAdmin() {
   const [isAdmin,  setIsAdmin]  = useState(false);
   const [checking, setChecking] = useState(true);
 
+  const checkAdminStatus = useCallback(async (userId: string) => {
+    // Check profiles.is_admin from the database — this is the authoritative source.
+    // app_metadata requires the service-role key (server-side) to set, so we fall back
+    // to the profiles table which is managed via Supabase Table Editor / RLS policies.
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userId)
+      .single();
+    setIsAdmin(profile?.is_admin === true);
+    setChecking(false);
+  }, []);
+
   useEffect(() => {
-    // FIX: Read admin status from the Supabase JWT app_metadata, NOT the profiles table.
-    // app_metadata can only be written by the service role (server-side), so a user
-    // cannot elevate themselves by editing their own profile row.
     supabase.auth.getUser().then(({ data: { user } }) => {
-      const flag = user?.app_metadata?.is_admin === true;
-      setIsAdmin(flag);
-      setChecking(false);
+      if (user) {
+        // Accept either app_metadata flag (if set via service role) OR profiles.is_admin
+        const appMetaAdmin = user?.app_metadata?.is_admin === true;
+        if (appMetaAdmin) {
+          setIsAdmin(true);
+          setChecking(false);
+        } else {
+          checkAdminStatus(user.id);
+        }
+      } else {
+        setIsAdmin(false);
+        setChecking(false);
+      }
     });
 
-    // Keep in sync if the session changes (e.g. token refresh picks up a new claim)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const flag = session?.user?.app_metadata?.is_admin === true;
-      setIsAdmin(flag);
-      setChecking(false);
+      if (session?.user) {
+        const appMetaAdmin = session.user?.app_metadata?.is_admin === true;
+        if (appMetaAdmin) {
+          setIsAdmin(true);
+          setChecking(false);
+        } else {
+          checkAdminStatus(session.user.id);
+        }
+      } else {
+        setIsAdmin(false);
+        setChecking(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkAdminStatus]);
 
   // ── Stats ──────────────────────────────────────────────────────────
   const fetchStats = useCallback(async (): Promise<AdminStats> => {
